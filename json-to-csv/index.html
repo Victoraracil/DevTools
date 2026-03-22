@@ -9,8 +9,123 @@
 <body>
   <main>
     <h1>JSON a CSV</h1>
-    <p>Aquí irá la microherramienta para convertir JSON a CSV.</p>
+    <p>Convierte tus datos JSON en un formato CSV fácil de copiar o descargar.</p>
+
+    <form id="jsonForm">
+      <label for="jsonInput">JSON de entrada</label><br />
+      <textarea id="jsonInput" rows="10" placeholder='[ {"nombre": "Ana", "edad": 28}, {"nombre": "Luis", "edad": 34} ]'></textarea>
+
+      <label for="includeHeaders">
+        <input type="checkbox" id="includeHeaders" checked /> Incluir cabeceras (keys)
+      </label>
+
+      <button type="submit">Convertir a CSV</button>
+      <button type="button" id="copyCsv">Copiar CSV</button>
+      <button type="button" id="downloadCsv">Descargar CSV</button>
+    </form>
+
+    <div id="error" style="color:#b91c1c; margin-top:0.75rem;"></div>
+    <pre id="csvOutput" style="margin-top:1rem; white-space: pre-wrap; word-break: break-word;"></pre>
+
     <p><a href="../index.html">Volver</a></p>
   </main>
+
+  <script>
+    const form = document.getElementById('jsonForm');
+    const jsonInput = document.getElementById('jsonInput');
+    const includeHeaders = document.getElementById('includeHeaders');
+    const csvOutput = document.getElementById('csvOutput');
+    const errorDiv = document.getElementById('error');
+    const copyCsv = document.getElementById('copyCsv');
+    const downloadCsv = document.getElementById('downloadCsv');
+
+    function jsonToCsv(data, includeHeader = true) {
+      if (!Array.isArray(data)) {
+        throw new Error('El JSON debe ser un array de objetos.');
+      }
+      if (data.length === 0) {
+        return '';
+      }
+
+      const keys = Array.from(data.reduce((set, item) => {
+        if (item && typeof item === 'object' && !Array.isArray(item)) {
+          Object.keys(item).forEach(key => set.add(key));
+        }
+        return set;
+      }, new Set()));
+
+      const escapeValue = str => {
+        const value = String(str).replace(/"/g, '""');
+        return value.includes(',') || value.includes('"') || value.includes('\n') ? `"${value}"` : value;
+      };
+
+      const rows = [];
+      if (includeHeader) rows.push(keys.map(escapeValue).join(','));
+
+      for (const item of data) {
+        const row = keys.map(key => {
+          if (item && Object.prototype.hasOwnProperty.call(item, key)) {
+            const value = item[key];
+            if (value === null || value === undefined) return '';
+            if (typeof value === 'object') {
+              return escapeValue(JSON.stringify(value));
+            }
+            return escapeValue(value);
+          }
+          return '';
+        });
+        rows.push(row.join(','));
+      }
+
+      return rows.join('\n');
+    }
+
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      errorDiv.textContent = '';
+      csvOutput.textContent = '';
+
+      let json;
+      try {
+        json = JSON.parse(jsonInput.value);
+      } catch (error) {
+        errorDiv.textContent = 'JSON inválido: ' + error.message;
+        return;
+      }
+
+      try {
+        const csv = jsonToCsv(json, includeHeaders.checked);
+        csvOutput.textContent = csv || '[Sin datos]';
+      } catch (error) {
+        errorDiv.textContent = error.message;
+      }
+    });
+
+    copyCsv.addEventListener('click', async () => {
+      const text = csvOutput.textContent;
+      if (!text || text === '[Sin datos]') return;
+      try {
+        await navigator.clipboard.writeText(text);
+        copyCsv.textContent = 'Copiado ✅';
+        setTimeout(() => { copyCsv.textContent = 'Copiar CSV'; }, 1400);
+      } catch (_) {
+        errorDiv.textContent = 'No se pudo copiar. Usa Ctrl+C manualmente.';
+      }
+    });
+
+    downloadCsv.addEventListener('click', () => {
+      const text = csvOutput.textContent;
+      if (!text || text === '[Sin datos]') return;
+      const blob = new Blob([text], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'datos.csv';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    });
+  </script>
 </body>
 </html>
