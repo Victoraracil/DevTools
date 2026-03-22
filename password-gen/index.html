@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Generador de contraseñas</title>
+  <link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+  <main>
+    <h1>Generador de contraseñas</h1>
+    <p>Configura la longitud (1–128) y genera una contraseña segura.</p>
+
+    <form id="password-form">
+      <label for="length">Longitud</label><br />
+      <input id="length" type="number" min="1" max="128" value="16" required />
+      <small>(máx. 128 caracteres)</small>
+      <br /><br />
+
+      <label>
+        <input type="checkbox" id="useUpper" checked /> Incluir mayúsculas
+      </label><br />
+      <label>
+        <input type="checkbox" id="useLower" checked /> Incluir minúsculas
+      </label><br />
+      <label>
+        <input type="checkbox" id="useNumbers" checked /> Incluir números
+      </label><br />
+      <label>
+        <input type="checkbox" id="useSymbols" checked /> Incluir símbolos
+      </label><br /><br />
+
+      <button type="submit">Generar</button>
+      <button type="button" id="copyButton">Copiar al portapapeles</button>
+    </form>
+
+    <div id="result" aria-live="polite" style="margin-top:1rem; word-break:break-all;"></div>
+
+    <p><a href="../index.html">Volver</a></p>
+  </main>
+
+  <script>
+    const form = document.getElementById('password-form');
+    const lengthInput = document.getElementById('length');
+    const resultDiv = document.getElementById('result');
+    const copyButton = document.getElementById('copyButton');
+
+    function getRandomInt(max) {
+      return Math.floor(Math.random() * max);
+    }
+
+    function generatePassword(length, options) {
+      const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      const lower = 'abcdefghijklmnopqrstuvwxyz';
+      const numbers = '0123456789';
+      const symbols = '!@#$%^&*()-_=+[]{}|;:,.<>?';
+
+      let charset = '';
+      if (options.upper) charset += upper;
+      if (options.lower) charset += lower;
+      if (options.numbers) charset += numbers;
+      if (options.symbols) charset += symbols;
+
+      if (!charset) {
+        return 'Selecciona al menos un conjunto de caracteres.';
+      }
+
+      if (length < 1 || length > 128) {
+        return 'La longitud debe estar entre 1 y 128.';
+      }
+
+      let password = '';
+      for (let i = 0; i < length; i++) {
+        password += charset[getRandomInt(charset.length)];
+      }
+
+      return password;
+    }
+
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      const length = Number(lengthInput.value);
+      const options = {
+        upper: document.getElementById('useUpper').checked,
+        lower: document.getElementById('useLower').checked,
+        numbers: document.getElementById('useNumbers').checked,
+        symbols: document.getElementById('useSymbols').checked,
+      };
+
+      const password = generatePassword(length, options);
+      resultDiv.textContent = password;
+    });
+
+    copyButton.addEventListener('click', async () => {
+      const text = resultDiv.textContent;
+      if (!text || text.startsWith('Selecciona') || text.startsWith('La longitud')) return;
+      try {
+        await navigator.clipboard.writeText(text);
+        copyButton.textContent = 'Copiado ✅';
+        setTimeout(() => { copyButton.textContent = 'Copiar al portapapeles'; }, 1600);
+      } catch (error) {
+        resultDiv.textContent = 'Error al copiar al portapapeles.';
+      }
+    });
+  </script>
+</body>
+</html>

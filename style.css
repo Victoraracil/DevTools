@@ -1,0 +1,8 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Inter, Roboto, Arial, sans-serif; background: #f0f2f5; color: #202124; min-height: 100vh; }
+main { max-width: 720px; margin: 3rem auto; padding: 1rem; background: #ffffff; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,.08); }
+h1 { margin-bottom: 1rem; }
+ul { list-style: none; margin-top: 1rem; }
+li + li { margin-top: 0.75rem; }
+a { color: #1a73e8; text-decoration: none; }
+a:hover { text-decoration: underline; }
