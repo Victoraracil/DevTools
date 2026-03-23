@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CSV a JSON</title>
+  <link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+  <main>
+    <h1>CSV a JSON</h1>
+    <p>Convierte tus datos CSV en JSON. Soporta cabecera opcional y celdas con comillas dobles.</p>
+
+    <form id="csvForm">
+      <label for="csvInput">CSV de entrada</label><br />
+      <textarea id="csvInput" rows="10" placeholder="nombre,edad\nAna,28\nLuis,34"></textarea>
+
+      <label for="csvHasHeader">
+        <input type="checkbox" id="csvHasHeader" checked /> Primera fila como cabecera
+      </label>
+
+      <button type="submit">Convertir a JSON</button>
+      <button type="button" id="copyJson">Copiar JSON</button>
+      <button type="button" id="downloadJson">Descargar JSON</button>
+    </form>
+
+    <div id="errorCsv" style="color:#b91c1c; margin-top:0.75rem;"></div>
+    <pre id="jsonOutput" style="margin-top:1rem; white-space: pre-wrap; word-break: break-word;"></pre>
+
+    <p><a href="../index.html">Volver</a></p>
+  </main>
+
+  <script>
+    const csvForm = document.getElementById('csvForm');
+    const csvInput = document.getElementById('csvInput');
+    const csvHasHeader = document.getElementById('csvHasHeader');
+    const jsonOutput = document.getElementById('jsonOutput');
+    const errorCsv = document.getElementById('errorCsv');
+    const copyJson = document.getElementById('copyJson');
+    const downloadJson = document.getElementById('downloadJson');
+
+    function parseCsvLine(line) {
+      const row = [];
+      let current = '';
+      let inQuotes = false;
+
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+
+        if (inQuotes) {
+          if (char === '"') {
+            if (i + 1 < line.length && line[i + 1] === '"') {
+              current += '"';
+              i += 1;
+            } else {
+              inQuotes = false;
+            }
+          } else {
+            current += char;
+          }
+        } else {
+          if (char === '"') {
+            inQuotes = true;
+          } else if (char === ',') {
+            row.push(current);
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+      }
+
+      row.push(current);
+      return row;
+    }
+
+    function csvToJson(csv, hasHeader = true) {
+      const lines = csv.split(/\r?\n/).filter(l => l.trim() !== '');
+      if (lines.length === 0) return [];
+
+      let headers = [];
+      let dataLines = lines;
+
+      if (hasHeader) {
+        headers = parseCsvLine(dataLines.shift());
+      } else {
+        const first = parseCsvLine(dataLines[0]);
+        headers = first.map((_, index) => `col${index + 1}`);
+      }
+
+      const result = dataLines.map(line => {
+        const cells = parseCsvLine(line);
+        const obj = {};
+
+        for (let i = 0; i < headers.length; i++) {
+          obj[headers[i] || `col${i + 1}`] = i < cells.length ? cells[i] : null;
+        }
+
+        for (let i = headers.length; i < cells.length; i++) {
+          obj[`extra${i - headers.length + 1}`] = cells[i];
+        }
+
+        return obj;
+      });
+
+      return result;
+    }
+
+    csvForm.addEventListener('submit', event => {
+      event.preventDefault();
+      errorCsv.textContent = '';
+      jsonOutput.textContent = '';
+
+      try {
+        const jsonData = csvToJson(csvInput.value, csvHasHeader.checked);
+        jsonOutput.textContent = jsonData.length ? JSON.stringify(jsonData, null, 2) : '[Sin datos]';
+      } catch (error) {
+        errorCsv.textContent = 'CSV inválido: ' + error.message;
+      }
+    });
+
+    copyJson.addEventListener('click', async () => {
+      const text = jsonOutput.textContent;
+      if (!text || text === '[Sin datos]') return;
+      try {
+        await navigator.clipboard.writeText(text);
+        copyJson.textContent = 'Copiado ✅';
+        setTimeout(() => { copyJson.textContent = 'Copiar JSON'; }, 1400);
+      } catch (_) {
+        errorCsv.textContent = 'No se pudo copiar. Usa Ctrl+C manualmente.';
+      }
+    });
+
+    downloadJson.addEventListener('click', () => {
+      const text = jsonOutput.textContent;
+      if (!text || text === '[Sin datos]') return;
+      const blob = new Blob([text], { type: 'application/json;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'datos.json';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    });
+  </script>
+</body>
+</html>

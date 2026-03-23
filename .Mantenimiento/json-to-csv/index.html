@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
@@ -55,7 +55,7 @@
       }, new Set()));
 
       const escapeValue = str => {
-        const value = String(str).replace(/"/g, '""');
+        const value = String(str).replace(/\"/g, '\"\"');
         return value.includes(',') || value.includes('"') || value.includes('\n') ? `"${value}"` : value;
       };
 
