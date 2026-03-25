@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Editor de PDF</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="stylesheet" href="../navbar.css" />
+  <style>
+    #editorContainer {
+      display: none;
+      margin-top: 1.5rem;
+    }
+
+    .editor-toolbar {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      padding: 1rem;
+      background: #f3f4f6;
+      border-radius: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .editor-toolbar button {
+      padding: 0.5rem 1rem;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+
+    .editor-toolbar button:hover {
+      background: #2563eb;
+    }
+
+    .editor-toolbar button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+
+    .canvas-container {
+      position: relative;
+      display: inline-block;
+      margin: 1rem 0;
+      border: 2px solid #d1d5db;
+      border-radius: 0.5rem;
+      overflow: auto;
+      max-width: 100%;
+      max-height: 600px;
+    }
+
+    #pdfCanvas {
+      display: block;
+      margin: 0 auto;
+      cursor: crosshair;
+    }
+
+    .page-controls {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      margin: 1rem 0;
+      flex-wrap: wrap;
+    }
+
+    .page-controls input {
+      width: 60px;
+      padding: 0.5rem;
+      border: 1px solid #d1d5db;
+      border-radius: 0.375rem;
+    }
+
+    .annotations-panel {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      margin-top: 1rem;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .annotation-item {
+      background: white;
+      padding: 0.5rem;
+      margin-bottom: 0.5rem;
+      border-left: 4px solid #3b82f6;
+      border-radius: 0.375rem;
+      font-size: 0.875rem;
+    }
+
+    .tool-select {
+      padding: 0.5rem;
+      border: 1px solid #d1d5db;
+      border-radius: 0.375rem;
+      background: white;
+    }
+
+    .color-picker {
+      padding: 0.25rem;
+      border: 1px solid #d1d5db;
+      border-radius: 0.375rem;
+    }
+
+    .drawing-mode-active {
+      background: #10b981 !important;
+    }
+
+    .text-annotation {
+      position: absolute;
+      background: #fbbf24;
+      color: #000;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      cursor: move;
+      border: 2px dashed #92400e;
+      max-width: 150px;
+      word-wrap: break-word;
+    }
+
+    .annotation-controls {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+      flex-wrap: wrap;
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a class="logo" href="../index.html">DevTools</a>
+      <nav class="site-nav">
+        <a class="nav-link" href="../apoyo.html">Apoyo</a>
+        <a class="nav-link" href="../ayuda.html">Ayuda</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <h1>Editor de PDF</h1>
+    <p>Carga, anota, dibuja y edita archivos PDF. Visualiza, agrega notas y comentarios, dibuja marcas y descarga tu PDF modificado.</p>
+
+    <div id="uploadSection">
+      <label for="pdfFile">Selecciona un PDF</label><br />
+      <input type="file" id="pdfFile" accept="application/pdf" />
+      <button id="loadPdfBtn">Cargar PDF</button>
+      <div id="uploadError" style="color: #b91c1c; margin-top: 0.75rem;"></div>
+    </div>
+
+    <div id="editorContainer">
+      <!-- Controles de herramientas -->
+      <div class="editor-toolbar">
+        <select id="toolSelect" class="tool-select">
+          <option value="select">Seleccionar</option>
+          <option value="pen">Pen (dibujar)</option>
+          <option value="highlight">Resaltador</option>
+          <option value="line">Línea</option>
+          <option value="rectangle">Rectángulo</option>
+          <option value="circle">Círculo</option>
+          <option value="text">Agregar texto</option>
+          <option value="note">Nota adhesiva</option>
+        </select>
+
+        <input type="color" id="colorPicker" class="color-picker" value="#ff0000" title="Color" />
+        
+        <input type="range" id="brushSize" min="1" max="20" value="3" title="Tamaño del pincel" style="width: 100px;" />
+
+        <button id="clearCanvasBtn">Limpiar anotaciones</button>
+        <button id="undoBtn">Deshacer</button>
+        <button id="downloadPdfBtn">Descargar PDF</button>
+      </div>
+
+      <!-- Controles de páginas -->
+      <div class="page-controls">
+        <button id="prevPageBtn">← Anterior</button>
+        <input type="number" id="pageInput" min="1" value="1" />
+        <span id="pageInfo">de 1</span>
+        <button id="nextPageBtn">Siguiente →</button>
+        <button id="rotateLeftBtn">Girar ↻</button>
+        <button id="rotateRightBtn">Girar ↺</button>
+      </div>
+
+      <!-- Canvas -->
+      <div class="canvas-container">
+        <canvas id="pdfCanvas"></canvas>
+      </div>
+
+      <!-- Panel de anotaciones -->
+      <div class="annotations-panel">
+        <strong>Anotaciones en esta página:</strong>
+        <div id="annotationsList"></div>
+      </div>
+
+      <div class="annotation-controls">
+        <button id="extractTextBtn">Extraer texto de página</button>
+      </div>
+
+      <div id="extractedText" style="margin-top: 1rem; padding: 1rem; background: #f3f4f6; border-radius: 0.5rem; display: none;">
+        <p><strong>Texto extraído:</strong></p>
+        <pre id="textContent" style="white-space: pre-wrap; word-break: break-word;"></pre>
+        <button id="copyTextBtn">Copiar texto</button>
+      </div>
+    </div>
+
+    <p><a href="../index.html">Volver</a></p>
+
+    <p style="margin-top:1rem; padding:0.75rem; background-color:#f3f4f6; border-radius:0.5rem; text-align:center; font-size:0.875rem;">
+      ¿Te ahorró tiempo? ¡Un café nos viene bien a ambos! ☕😄
+    </p>
+  </main>
+
+  <!-- Librerías -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <script>
+    const pdfFile = document.getElementById('pdfFile');
+    const loadPdfBtn = document.getElementById('loadPdfBtn');
+    const editorContainer = document.getElementById('editorContainer');
+    const uploadError = document.getElementById('uploadError');
+    const canvas = document.getElementById('pdfCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Herramientas
+    const toolSelect = document.getElementById('toolSelect');
+    const colorPicker = document.getElementById('colorPicker');
+    const brushSize = document.getElementById('brushSize');
+    const clearCanvasBtn = document.getElementById('clearCanvasBtn');
+    const undoBtn = document.getElementById('undoBtn');
+    const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+
+    // Páginas
+    const prevPageBtn = document.getElementById('prevPageBtn');
+    const nextPageBtn = document.getElementById('nextPageBtn');
+    const pageInput = document.getElementById('pageInput');
+    const pageInfo = document.getElementById('pageInfo');
+    const rotateLeftBtn = document.getElementById('rotateLeftBtn');
+    const rotateRightBtn = document.getElementById('rotateRightBtn');
+
+    // Anotaciones
+    const annotationsList = document.getElementById('annotationsList');
+    const extractTextBtn = document.getElementById('extractTextBtn');
+    const extractedText = document.getElementById('extractedText');
+    const textContent = document.getElementById('textContent');
+    const copyTextBtn = document.getElementById('copyTextBtn');
+
+    let pdfDoc = null;
+    let currentPage = 1;
+    let rotations = {};
+    let drawingHistory = [];
+    let isDrawing = false;
+    let startX, startY;
+    let annotations = {};
+    let currentTool = 'select';
+    let canvasStates = {};
+
+    loadPdfBtn.addEventListener('click', loadPdf);
+    toolSelect.addEventListener('change', (e) => { currentTool = e.target.value; });
+    clearCanvasBtn.addEventListener('click', clearAnnotations);
+    undoBtn.addEventListener('click', undo);
+    downloadPdfBtn.addEventListener('click', downloadPdf);
+    prevPageBtn.addEventListener('click', () => { goToPage(currentPage - 1); });
+    nextPageBtn.addEventListener('click', () => { goToPage(currentPage + 1); });
+    pageInput.addEventListener('change', () => { goToPage(parseInt(pageInput.value)); });
+    rotateLeftBtn.addEventListener('click', () => { rotatePage(-90); });
+    rotateRightBtn.addEventListener('click', () => { rotatePage(90); });
+    extractTextBtn.addEventListener('click', extractText);
+    copyTextBtn.addEventListener('click', copyText);
+
+    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDrawing);
+    canvas.addEventListener('mouseout', stopDrawing);
+
+    async function loadPdf(e) {
+      uploadError.textContent = '';
+      if (!pdfFile.files.length) {
+        uploadError.textContent = 'Selecciona un PDF primero.';
+        return;
+      }
+
+      const file = pdfFile.files[0];
+      const reader = new FileReader();
+
+      reader.onload = async (event) => {
+        try {
+          pdfDoc = await pdfjsLib.getDocument({ data: event.target.result }).promise;
+          currentPage = 1;
+          rotations = {};
+          annotations = {};
+          canvasStates = {};
+          await renderPage(currentPage);
+          editorContainer.style.display = 'block';
+          updatePageInfo();
+        } catch (err) {
+          uploadError.textContent = `Error cargando PDF: ${err.message}`;
+        }
+      };
+
+      reader.readAsArrayBuffer(file);
+    }
+
+    async function renderPage(pageNum) {
+      if (!pdfDoc || pageNum < 1 || pageNum > pdfDoc.numPages) return;
+
+      const page = await pdfDoc.getPage(pageNum);
+      const scale = 1.5;
+      const viewport = page.getViewport({ scale });
+
+      const rotation = rotations[pageNum] || 0;
+      canvas.width = rotation % 180 !== 0 ? viewport.height : viewport.width;
+      canvas.height = rotation % 180 !== 0 ? viewport.width : viewport.height;
+
+      ctx.save();
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate((rotation * Math.PI) / 180);
+      ctx.translate(-viewport.width / 2, -viewport.height / 2);
+
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      ctx.restore();
+
+      // Restaurar anotaciones guardadas
+      if (canvasStates[pageNum]) {
+        const imageData = canvasStates[pageNum];
+        ctx.putImageData(imageData, 0, 0);
+      }
+
+      updateAnnotationsPanel();
+    }
+
+    function startDrawing(e) {
+      if (currentTool === 'select') return;
+
+      isDrawing = true;
+      const rect = canvas.getBoundingClientRect();
+      startX = e.clientX - rect.left;
+      startY = e.clientY - rect.top;
+
+      if (currentTool === 'text') {
+        const text = prompt('Ingresa el texto:');
+        if (text) {
+          ctx.font = '14px Arial';
+          ctx.fillStyle = colorPicker.value;
+          ctx.fillText(text, startX, startY);
+          saveCanvasState();
+          addAnnotation('Texto', text);
+        }
+        isDrawing = false;
+      } else if (currentTool === 'note') {
+        const noteText = prompt('Ingresa la nota:');
+        if (noteText) {
+          addAnnotation('Nota', noteText);
+        }
+        isDrawing = false;
+      }
+    }
+
+    function draw(e) {
+      if (!isDrawing || currentTool === 'select' || currentTool === 'text' || currentTool === 'note') return;
+
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      ctx.strokeStyle = colorPicker.value;
+      ctx.lineWidth = brushSize.value;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      if (currentTool === 'pen' || currentTool === 'highlight') {
+        ctx.globalAlpha = currentTool === 'highlight' ? 0.4 : 1;
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      } else {
+        // Para formas, redibuja el canvas y dibuja la forma
+        redrawCanvasState();
+
+        if (currentTool === 'line') {
+          ctx.beginPath();
+          ctx.moveTo(startX, startY);
+          ctx.lineTo(x, y);
+          ctx.stroke();
+        } else if (currentTool === 'rectangle') {
+          ctx.strokeRect(startX, startY, x - startX, y - startY);
+        } else if (currentTool === 'circle') {
+          const radius = Math.sqrt(Math.pow(x - startX, 2) + Math.pow(y - startY, 2));
+          ctx.beginPath();
+          ctx.arc(startX, startY, radius, 0, 2 * Math.PI);
+          ctx.stroke();
+        }
+      }
+
+      startX = x;
+      startY = y;
+    }
+
+    function stopDrawing() {
+      if (isDrawing && (currentTool === 'pen' || currentTool === 'highlight' || 
+                        currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle')) {
+        saveCanvasState();
+        addAnnotation(currentTool, '');
+      }
+      isDrawing = false;
+    }
+
+    function saveCanvasState() {
+      canvasStates[currentPage] = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      drawingHistory.push(currentPage);
+    }
+
+    function redrawCanvasState() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (canvasStates[currentPage]) {
+        ctx.putImageData(canvasStates[currentPage], 0, 0);
+      }
+    }
+
+    function undo() {
+      if (drawingHistory.length === 0) return;
+      const pageNum = drawingHistory[drawingHistory.length - 1];
+      delete canvasStates[pageNum];
+      drawingHistory.pop();
+      renderPage(currentPage);
+    }
+
+    function clearAnnotations() {
+      if (confirm('¿Limpiar todas las anotaciones de esta página?')) {
+        delete canvasStates[currentPage];
+        delete annotations[currentPage];
+        drawingHistory = drawingHistory.filter(p => p !== currentPage);
+        renderPage(currentPage);
+      }
+    }
+
+    function addAnnotation(type, text) {
+      if (!annotations[currentPage]) annotations[currentPage] = [];
+      annotations[currentPage].push({ type, text, time: new Date().toLocaleTimeString() });
+      updateAnnotationsPanel();
+    }
+
+    function updateAnnotationsPanel() {
+      annotationsList.innerHTML = '';
+      const pageAnnotations = annotations[currentPage] || [];
+      if (pageAnnotations.length === 0) {
+        annotationsList.innerHTML = '<p style="font-size: 0.875rem; color: #6b7280;">Sin anotaciones</p>';
+      } else {
+        pageAnnotations.forEach((ann, idx) => {
+          const div = document.createElement('div');
+          div.className = 'annotation-item';
+          div.innerHTML = `<strong>${ann.type}</strong> - ${ann.text}<br><small>${ann.time}</small>`;
+          annotationsList.appendChild(div);
+        });
+      }
+    }
+
+    async function extractText() {
+      if (!pdfDoc) return;
+      const page = await pdfDoc.getPage(currentPage);
+      const textContent = await page.getTextContent();
+      const text = textContent.items.map(item => item.str).join(' ');
+      
+      document.getElementById('textContent').textContent = text || 'No se encontró texto';
+      extractedText.style.display = 'block';
+    }
+
+    function copyText() {
+      navigator.clipboard.writeText(document.getElementById('textContent').textContent);
+      copyTextBtn.textContent = '✅ Copiado';
+      setTimeout(() => { copyTextBtn.textContent = 'Copiar texto'; }, 1500);
+    }
+
+    function goToPage(pageNum) {
+      if (pageNum >= 1 && pageNum <= pdfDoc.numPages) {
+        currentPage = pageNum;
+        pageInput.value = pageNum;
+        updatePageInfo();
+        renderPage(currentPage);
+        extractedText.style.display = 'none';
+      }
+    }
+
+    function rotatePage(angle) {
+      rotations[currentPage] = (rotations[currentPage] || 0) + angle;
+      renderPage(currentPage);
+    }
+
+    function updatePageInfo() {
+      pageInfo.textContent = `de ${pdfDoc.numPages}`;
+      prevPageBtn.disabled = currentPage === 1;
+      nextPageBtn.disabled = currentPage === pdfDoc.numPages;
+    }
+
+    async function downloadPdf() {
+      if (!pdfDoc) return;
+
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF();
+      let isFirst = true;
+
+      for (let i = 1; i <= pdfDoc.numPages; i++) {
+        if (!isFirst) pdf.addPage();
+        isFirst = false;
+
+        // Renderizar página original
+        const page = await pdfDoc.getPage(i);
+        const scale = 2;
+        const viewport = page.getViewport({ scale });
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = viewport.width;
+        tempCanvas.height = viewport.height;
+        const tempCtx = tempCanvas.getContext('2d');
+
+        await page.render({ canvasContext: tempCtx, viewport }).promise;
+
+        // Aplicar rotación si existe
+        if (rotations[i]) {
+          const rotCanvas = document.createElement('canvas');
+          const rotCtx = rotCanvas.getContext('2d');
+          const angle = rotations[i];
+          rotCanvas.width = angle % 180 !== 0 ? tempCanvas.height : tempCanvas.width;
+          rotCanvas.height = angle % 180 !== 0 ? tempCanvas.width : tempCanvas.height;
+          rotCtx.translate(rotCanvas.width / 2, rotCanvas.height / 2);
+          rotCtx.rotate((angle * Math.PI) / 180);
+          rotCtx.drawImage(tempCanvas, -tempCanvas.width / 2, -tempCanvas.height / 2);
+          tempCanvas.width = rotCanvas.width;
+          tempCanvas.height = rotCanvas.height;
+          tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+          tempCtx.drawImage(rotCanvas, 0, 0);
+        }
+
+        // Agregar anotaciones dibujadas
+        if (canvasStates[i]) {
+          const annotCanvas = document.createElement('canvas');
+          annotCanvas.width = viewport.width;
+          annotCanvas.height = viewport.height;
+          const annotCtx = annotCanvas.getContext('2d');
+          
+          const annotData = canvasStates[i];
+          if (annotData.width === viewport.width && annotData.height === viewport.height) {
+            annotCtx.putImageData(annotData, 0, 0);
+            tempCtx.drawImage(annotCanvas, 0, 0);
+          }
+        }
+
+        const imgData = tempCanvas.toDataURL('image/png');
+        pdf.addImage(imgData, 'PNG', 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
+      }
+
+      pdf.save('documento_editado.pdf');
+    }
+  </script>
+</body>
+</html>

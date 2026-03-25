@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Excel a PDF</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="stylesheet" href="../navbar.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a class="logo" href="../index.html">DevTools</a>
+      <nav class="site-nav">
+        <a class="nav-link" href="../apoyo.html">Apoyo</a>
+        <a class="nav-link" href="../ayuda.html">Ayuda</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <h1>Excel a PDF</h1>
+    <p>Convierte hojas de cálculo Excel (.xlsx, .xls) a PDF de forma rápida y sencilla.</p>
+
+    <label for="excelFile">Selecciona un archivo Excel</label><br />
+    <input type="file" id="excelFile" accept=".xlsx,.xls,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+
+    <button id="convertBtn" disabled>Convertir a PDF</button>
+    <button id="downloadBtn" disabled>Descargar PDF</button>
+
+    <div id="status" style="margin-top:0.75rem; color:#111;"></div>
+    <div id="error" style="color:#b91c1c; margin-top:0.75rem;"></div>
+
+    <p style="margin-top:1rem; padding:0.75rem; background-color:#f3f4f6; border-radius:0.5rem; text-align:center; font-size:0.875rem;">
+      ¿Te ahorró tiempo? ¡Un café nos viene bien a ambos! ☕😄
+    </p>
+
+    <p><a href="../index.html">Volver</a></p>
+  </main>
+
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script>
+    const excelFile = document.getElementById('excelFile');
+    const convertBtn = document.getElementById('convertBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const statusEl = document.getElementById('status');
+    const errorEl = document.getElementById('error');
+
+    let generatedPdf = null;
+
+    excelFile.addEventListener('change', () => {
+      convertBtn.disabled = !excelFile.files.length;
+      downloadBtn.disabled = true;
+      generatedPdf = null;
+      statusEl.textContent = '';
+      errorEl.textContent = '';
+    });
+
+    function parseExcelFile(fileArrayBuffer) {
+      try {
+        const workbook = XLSX.read(fileArrayBuffer, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        return { data, sheetName };
+      } catch (err) {
+        throw new Error(`Error al leer Excel: ${err.message}`);
+      }
+    }
+
+    function makeTableHtml(data, sheetName) {
+      let html = `<h2 style="margin-bottom: 10px;">${sheetName}</h2>`;
+      html += '<table style="width:100%; border-collapse:collapse; font-family:Arial; font-size:11px;">';
+
+      data.forEach((row, rowIdx) => {
+        html += '<tr>';
+        row.forEach((cell, colIdx) => {
+          const bgColor = rowIdx === 0 ? '#4CAF50' : (rowIdx % 2 === 0 ? '#f0f0f0' : '#ffffff');
+          const textColor = rowIdx === 0 ? '#ffffff' : '#000000';
+          const fontWeight = rowIdx === 0 ? 'bold' : 'normal';
+          const padding = '8px';
+          const border = '1px solid #ddd';
+          
+          html += `<td style="background-color:${bgColor}; color:${textColor}; font-weight:${fontWeight}; padding:${padding}; border:${border}; word-wrap:break-word;">
+            ${typeof cell === 'object' && cell !== null ? JSON.stringify(cell) : (cell || '')}
+          </td>`;
+        });
+        html += '</tr>';
+      });
+
+      html += '</table>';
+      return html;
+    }
+
+    convertBtn.addEventListener('click', () => {
+      if (!excelFile.files.length) return;
+
+      errorEl.textContent = '';
+      statusEl.textContent = 'Procesando archivo Excel...';
+      convertBtn.disabled = true;
+      downloadBtn.disabled = true;
+      generatedPdf = null;
+
+      const file = excelFile.files[0];
+      const reader = new FileReader();
+
+      reader.onload = async event => {
+        try {
+          const buffer = event.target.result;
+          const { data, sheetName } = parseExcelFile(buffer);
+
+          if (!data.length) {
+            throw new Error('El archivo Excel está vacío.');
+          }
+
+          const { jsPDF } = window.jspdf;
+          const doc = new jsPDF({
+            orientation: 'landscape',
+            unit: 'mm',
+            format: 'a4'
+          });
+
+          const container = document.createElement('div');
+          container.style.width = '280mm';
+          container.style.padding = '10mm';
+          container.style.fontSize = '11px';
+          container.innerHTML = makeTableHtml(data, sheetName);
+          document.body.appendChild(container);
+
+          try {
+            const canvas = await html2canvas(container, {
+              scale: 2,
+              useCORS: true,
+              logging: false,
+              backgroundColor: '#ffffff'
+            });
+
+            document.body.removeChild(container);
+
+            const imgData = canvas.toDataURL('image/png');
+            const imgWidth = 277;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            let heightLeft = imgHeight;
+            let position = 10;
+
+            const pageHeight = doc.internal.pageSize.getHeight() - 20;
+
+            doc.addImage(imgData, 'PNG', 5, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+
+            while (heightLeft >= 0) {
+              position = heightLeft - imgHeight;
+              doc.addPage();
+              doc.addImage(imgData, 'PNG', 5, position, imgWidth, imgHeight);
+              heightLeft -= pageHeight;
+            }
+
+            generatedPdf = doc;
+            statusEl.textContent = `¡Listo! Hoja "${sheetName}" convertida (${data.length} filas).`;
+            downloadBtn.disabled = false;
+          } catch (err) {
+            document.body.removeChild(container);
+            throw new Error(`Error al generar PDF: ${err.message}`);
+          }
+        } catch (err) {
+          errorEl.textContent = `Error: ${err.message}`;
+          statusEl.textContent = '';
+        } finally {
+          convertBtn.disabled = false;
+        }
+      };
+
+      reader.onerror = () => {
+        errorEl.textContent = 'No se pudo leer el archivo Excel.';
+        statusEl.textContent = '';
+        convertBtn.disabled = false;
+      };
+
+      reader.readAsArrayBuffer(file);
+    });
+
+    downloadBtn.addEventListener('click', () => {
+      if (!generatedPdf) return;
+      const filename = 'export_' + new Date().getTime() + '.pdf';
+      generatedPdf.save(filename);
+    });
+  </script>
+</body>
+</html>

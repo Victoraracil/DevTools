@@ -5,8 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PDF a Excel</title>
   <link rel="stylesheet" href="../style.css" />
+  <link rel="stylesheet" href="../navbar.css" />
 </head>
 <body>
+  <header class="site-header">
+    <div class="container">
+      <a class="logo" href="../index.html">DevTools</a>
+      <nav class="site-nav">
+        <a class="nav-link" href="../apoyo.html">Apoyo</a>
+        <a class="nav-link" href="../ayuda.html">Ayuda</a>
+      </nav>
+    </div>
+  </header>
+
   <main>
     <h1>PDF a Excel</h1>
     <p>Extrae texto del PDF y conviértelo a una hoja de cálculo XLSX (texto plano).
@@ -21,10 +32,15 @@
     <div id="status" style="margin-top:0.75rem; color:#111;"></div>
     <div id="error" style="color:#b91c1c; margin-top:0.75rem;"></div>
 
+    <p style="margin-top:1rem; padding:0.75rem; background-color:#f3f4f6; border-radius:0.5rem; text-align:center; font-size:0.875rem;">
+      ¿Te ahorró tiempo? ¡Un café nos viene bien a ambos! ☕😄
+    </p>
+
     <p><a href="../index.html">Volver</a></p>
   </main>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
   <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
   <script>
     const pdfFile = document.getElementById('pdfFile');
@@ -48,37 +64,46 @@
         .then(pdf => {
           const pagePromises = [];
           for (let i = 1; i <= pdf.numPages; i++) {
-            pagePromises.push(pdf.getPage(i).then(page => page.getTextContent()));
+            pagePromises.push(
+              pdf.getPage(i).then(page => page.getTextContent())
+            );
           }
           return Promise.all(pagePromises).then(pages => {
             const lines = [];
             pages.forEach((page, pageIndex) => {
               let pageText = '';
+              let lastY = null;
               page.items.forEach(item => {
-                pageText += item.str;
-                if (item.str.endsWith('\n') || item.str.endsWith('\r')) {
-                  // no-op; preservo líneas con split depois
+                if (lastY !== null && Math.abs(item.y - lastY) > 3) {
+                  pageText += '\n';
                 }
+                pageText += item.str + ' ';
+                lastY = item.y;
               });
-              pageText = pageText.replace(/\s+$/g, '');
-              const rawLines = pageText.split(/\r?\n|\r/).filter(l => l.trim() !== '');
-              rawLines.forEach(l => lines.push(l));
+              const pageLines = pageText.split('\n').map(l => l.trim()).filter(l => l);
+              pageLines.forEach(l => lines.push(l));
               if (pageIndex < pages.length - 1) {
                 lines.push('');
               }
             });
-            return lines;
+            return lines.length ? lines : ['No se encontró texto en el PDF'];
           });
+        })
+        .catch(err => {
+          throw new Error(`Error leyendo PDF: ${err.message}`);
         });
     }
 
     function makeXlsxFromLines(lines) {
-      if (!lines.length) throw new Error('No se encontró contenido texto en el PDF.');
+      if (!lines.length) throw new Error('No se encontró contenido en el PDF.');
 
       const aoa = lines.map(line => [line]);
       const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws['!cols'] = [{ wch: 50 }];
+      
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Hoja1');
+      
       const data = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
       return new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     }
@@ -104,7 +129,7 @@
           statusEl.textContent = `¡Listo! Texto extraído (${lines.length} filas).`; 
           downloadBtn.disabled = false;
         } catch (err) {
-          errorEl.textContent = `Error al convertir PDF: ${err.message}`;
+          errorEl.textContent = `Error: ${err.message}`;
           statusEl.textContent = '';
         } finally {
           convertBtn.disabled = false;
@@ -113,6 +138,7 @@
 
       reader.onerror = () => {
         errorEl.textContent = 'No se pudo leer el PDF.';
+        statusEl.textContent = '';
         convertBtn.disabled = false;
       };
 
@@ -123,7 +149,7 @@
       if (!generatedBlob) return;
       const a = document.createElement('a');
       a.href = URL.createObjectURL(generatedBlob);
-      a.download = 'export.xlsx';
+      a.download = 'export_' + new Date().getTime() + '.xlsx';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
