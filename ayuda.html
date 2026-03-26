@@ -3,9 +3,68 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DevTools - Ayuda</title>
+  <title>DevTools - GitHub</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="navbar.css" />
+  <style>
+    main {
+      max-width: 600px !important;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: calc(100vh - 80px);
+      text-align: center;
+      padding: 2rem 1.25rem !important;
+    }
+
+    .github-section {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 4rem 3rem;
+      border-radius: 20px;
+      color: white;
+      box-shadow: 0 20px 60px rgba(102, 126, 234, 0.4);
+    }
+
+    .github-section h1 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      font-weight: 900;
+    }
+
+    .github-section p {
+      font-size: 1.15rem;
+      opacity: 0.95;
+      margin-bottom: 2.5rem;
+      line-height: 1.8;
+    }
+
+    .github-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1.25rem 2rem;
+      background: white;
+      color: #667eea;
+      text-decoration: none;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 1.1rem;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+      border: none;
+      cursor: pointer;
+    }
+
+    .github-button:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3);
+    }
+
+    .github-icon {
+      font-size: 1.5rem;
+    }
+  </style>
 </head>
 <body>
   <header class="site-header">
@@ -13,18 +72,20 @@
       <a class="logo" href="index.html">DevTools</a>
       <nav class="site-nav">
         <a class="nav-link" href="apoyo.html">Apoyo</a>
-        <a class="nav-link" href="ayuda.html">Ayuda</a>
+        <a class="nav-link" href="ayuda.html">GitHub</a>
       </nav>
     </div>
   </header>
+
   <main>
-    <h1>Sección de Ayuda</h1>
-    <p>Encuentra respuestas rápidas, tutoriales y resolución de problemas comunes.</p>
-    <ul>
-      <li>FAQ de herramientas</li>
-      <li>Consejos de uso</li>
-      <li>Video guías</li>
-    </ul>
+    <section class="github-section">
+      <h1>🚀 Sígueme en GitHub</h1>
+      <p>Explora el código fuente, contribuye y mantente actualizado con nuevos proyectos y herramientas.</p>
+      <a href="https://github.com/Victoraracil?tab=repositories" target="_blank" class="github-button">
+        <span class="github-icon">⭐</span>
+        Ir a GitHub
+      </a>
+    </section>
   </main>
 </body>
 </html>
