@@ -4,239 +4,342 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Editor de PDF</title>
-  <link rel="stylesheet" href="../style.css" />
   <link rel="stylesheet" href="../navbar.css" />
   <style>
-    #editorContainer {
-      display: none;
-      margin-top: 1.5rem;
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
 
-    .editor-toolbar {
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #ffffff;
+      height: 100vh;
       display: flex;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-      padding: 1rem;
-      background: #f3f4f6;
-      border-radius: 0.5rem;
-      margin-bottom: 1rem;
+      flex-direction: column;
     }
 
-    .editor-toolbar button {
+    .site-header {
+      flex-shrink: 0;
+      background: white;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    main {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      padding: 0;
+    }
+
+    #uploadSection {
+      padding: 2rem;
+      background: #f3f4f6;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    #uploadSection input[type="file"],
+    #uploadSection button {
       padding: 0.5rem 1rem;
+      margin-right: 0.5rem;
+      border: 1px solid #d1d5db;
+      border-radius: 0.375rem;
+      font-size: 0.875rem;
+      cursor: pointer;
+    }
+
+    #uploadSection button {
       background: #3b82f6;
       color: white;
       border: none;
-      border-radius: 0.375rem;
-      cursor: pointer;
-      font-size: 0.875rem;
     }
 
-    .editor-toolbar button:hover {
+    #uploadSection button:hover {
       background: #2563eb;
     }
 
-    .editor-toolbar button:disabled {
+    #uploadError {
+      color: #dc2626;
+      margin-top: 0.5rem;
+      font-size: 0.875rem;
+    }
+
+    #editorContainer {
+      display: none;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .toolbar {
+      background: #f3f4f6;
+      border-bottom: 1px solid #d1d5db;
+      padding: 0.75rem 1rem;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .toolbar-group {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      border-right: 1px solid #d1d5db;
+      padding-right: 1rem;
+    }
+
+    .toolbar-group:last-child {
+      border-right: none;
+      padding-right: 0;
+    }
+
+    .toolbar button,
+    .toolbar select,
+    .toolbar input[type="color"],
+    .toolbar input[type="range"] {
+      padding: 0.5rem 0.75rem;
+      background: #3b82f6;
+      color: white;
+      border: 1px solid #2563eb;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      font-size: 0.75rem;
+    }
+
+    .toolbar select {
+      background: white;
+      color: #111;
+    }
+
+    .toolbar input[type="color"] {
+      width: 40px;
+      height: 32px;
+    }
+
+    .toolbar input[type="range"] {
+      width: 100px;
+    }
+
+    .toolbar button:hover {
+      background: #2563eb;
+    }
+
+    .toolbar button:disabled {
       background: #9ca3af;
       cursor: not-allowed;
     }
 
-    .canvas-container {
-      position: relative;
-      display: inline-block;
-      margin: 1rem 0;
-      border: 2px solid #d1d5db;
-      border-radius: 0.5rem;
+    .toolbar label {
+      font-size: 0.75rem;
+      color: #374151;
+    }
+
+    .viewer-container {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      background: #e5e7eb;
       overflow: auto;
-      max-width: 100%;
-      max-height: 600px;
+      padding: 1rem;
+    }
+
+    .pdf-page-wrapper {
+      position: relative;
+      background: white;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
 
     #pdfCanvas {
       display: block;
-      margin: 0 auto;
+    }
+
+    #annotationCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
       cursor: crosshair;
+      z-index: 10;
     }
 
-    .page-controls {
-      display: flex;
-      gap: 0.5rem;
-      align-items: center;
-      margin: 1rem 0;
-      flex-wrap: wrap;
+    .status-bar {
+      background: #f3f4f6;
+      border-top: 1px solid #d1d5db;
+      padding: 0.75rem 1rem;
+      font-size: 0.875rem;
+      color: #6b7280;
+      flex-shrink: 0;
     }
 
-    .page-controls input {
-      width: 60px;
-      padding: 0.5rem;
-      border: 1px solid #d1d5db;
-      border-radius: 0.375rem;
-    }
-
-    .annotations-panel {
+    .annotations-list {
       background: #f9fafb;
-      border: 1px solid #e5e7eb;
-      border-radius: 0.5rem;
+      border-top: 1px solid #e5e7eb;
       padding: 1rem;
-      margin-top: 1rem;
-      max-height: 200px;
+      max-height: 150px;
       overflow-y: auto;
+      flex-shrink: 0;
+      display: none;
+    }
+
+    .annotations-list.active {
+      display: block;
     }
 
     .annotation-item {
       background: white;
       padding: 0.5rem;
       margin-bottom: 0.5rem;
-      border-left: 4px solid #3b82f6;
-      border-radius: 0.375rem;
-      font-size: 0.875rem;
-    }
-
-    .tool-select {
-      padding: 0.5rem;
-      border: 1px solid #d1d5db;
-      border-radius: 0.375rem;
-      background: white;
-    }
-
-    .color-picker {
-      padding: 0.25rem;
-      border: 1px solid #d1d5db;
-      border-radius: 0.375rem;
-    }
-
-    .drawing-mode-active {
-      background: #10b981 !important;
-    }
-
-    .text-annotation {
-      position: absolute;
-      background: #fbbf24;
-      color: #000;
-      padding: 0.25rem 0.5rem;
+      border-left: 3px solid #3b82f6;
       border-radius: 0.25rem;
       font-size: 0.75rem;
-      cursor: move;
-      border: 2px dashed #92400e;
-      max-width: 150px;
-      word-wrap: break-word;
     }
 
-    .annotation-controls {
-      display: flex;
-      gap: 0.5rem;
-      margin-top: 0.5rem;
-      flex-wrap: wrap;
+    #extractedText {
+      background: #f9fafb;
+      border-top: 1px solid #e5e7eb;
+      padding: 1rem;
+      max-height: 200px;
+      overflow-y: auto;
+      flex-shrink: 0;
+      display: none;
+    }
+
+    #extractedText.active {
+      display: block;
+    }
+
+    #textContent {
+      background: white;
+      border: 1px solid #d1d5db;
+      padding: 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      max-height: 150px;
+      overflow-y: auto;
+      margin-bottom: 0.5rem;
+    }
+
+    #extractedText button {
+      padding: 0.5rem 1rem;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      font-size: 0.75rem;
+    }
+
+    #extractedText button:hover {
+      background: #2563eb;
     }
   </style>
 </head>
 <body>
   <header class="site-header">
-    <div class="container">
+    <div class="container" style="padding: 1rem;">
       <a class="logo" href="../index.html">DevTools</a>
-      <nav class="site-nav">
-        <a class="nav-link" href="../apoyo.html">Apoyo</a>
-        <a class="nav-link" href="../ayuda.html">Ayuda</a>
-      </nav>
     </div>
   </header>
 
   <main>
-    <h1>Editor de PDF</h1>
-    <p>Carga, anota, dibuja y edita archivos PDF. Visualiza, agrega notas y comentarios, dibuja marcas y descarga tu PDF modificado.</p>
-
     <div id="uploadSection">
-      <label for="pdfFile">Selecciona un PDF</label><br />
       <input type="file" id="pdfFile" accept="application/pdf" />
       <button id="loadPdfBtn">Cargar PDF</button>
-      <div id="uploadError" style="color: #b91c1c; margin-top: 0.75rem;"></div>
+      <div id="uploadError"></div>
     </div>
 
     <div id="editorContainer">
-      <!-- Controles de herramientas -->
-      <div class="editor-toolbar">
-        <select id="toolSelect" class="tool-select">
-          <option value="select">Seleccionar</option>
-          <option value="pen">Pen (dibujar)</option>
-          <option value="highlight">Resaltador</option>
-          <option value="line">Línea</option>
-          <option value="rectangle">Rectángulo</option>
-          <option value="circle">Círculo</option>
-          <option value="text">Agregar texto</option>
-          <option value="note">Nota adhesiva</option>
-        </select>
+      <div class="toolbar">
+        <div class="toolbar-group">
+          <select id="toolSelect">
+            <option value="select">Sin herramienta</option>
+            <option value="pen">Bolígrafo</option>
+            <option value="highlight">Highlighter</option>
+            <option value="text">Texto</option>
+            <option value="line">Línea</option>
+            <option value="rectangle">Rectángulo</option>
+            <option value="circle">Círculo</option>
+          </select>
+        </div>
 
-        <input type="color" id="colorPicker" class="color-picker" value="#ff0000" title="Color" />
-        
-        <input type="range" id="brushSize" min="1" max="20" value="3" title="Tamaño del pincel" style="width: 100px;" />
+        <div class="toolbar-group">
+          <label>Color:</label>
+          <input type="color" id="colorPicker" value="#ff0000" />
+          <label>Tamaño:</label>
+          <input type="range" id="brushSize" min="1" max="20" value="3" />
+        </div>
 
-        <button id="clearCanvasBtn">Limpiar anotaciones</button>
-        <button id="undoBtn">Deshacer</button>
-        <button id="downloadPdfBtn">Descargar PDF</button>
+        <div class="toolbar-group">
+          <button id="undoBtn">Deshacer</button>
+          <button id="clearCanvasBtn">Limpiar</button>
+          <button id="downloadPdfBtn">Descargar</button>
+        </div>
+
+        <div class="toolbar-group">
+          <button id="prevPageBtn">◀ Anterior</button>
+          <input type="number" id="pageInput" min="1" value="1" style="width: 50px;" />
+          <span id="pageInfo">de 1</span>
+          <button id="nextPageBtn">Siguiente ▶</button>
+        </div>
+
+        <div class="toolbar-group">
+          <button id="rotateLeftBtn">Girar ↻</button>
+          <button id="rotateRightBtn">Girar ↺</button>
+          <button id="extractTextBtn">Extraer texto</button>
+        </div>
       </div>
 
-      <!-- Controles de páginas -->
-      <div class="page-controls">
-        <button id="prevPageBtn">← Anterior</button>
-        <input type="number" id="pageInput" min="1" value="1" />
-        <span id="pageInfo">de 1</span>
-        <button id="nextPageBtn">Siguiente →</button>
-        <button id="rotateLeftBtn">Girar ↻</button>
-        <button id="rotateRightBtn">Girar ↺</button>
+      <div class="viewer-container">
+        <div class="pdf-page-wrapper" id="pdfPageWrapper">
+          <canvas id="pdfCanvas"></canvas>
+          <canvas id="annotationCanvas"></canvas>
+        </div>
       </div>
 
-      <!-- Canvas -->
-      <div class="canvas-container">
-        <canvas id="pdfCanvas"></canvas>
+      <div class="annotations-list" id="annotationsList">
+        <strong>Anotaciones:</strong>
+        <div id="annotationsListContainer"></div>
       </div>
 
-      <!-- Panel de anotaciones -->
-      <div class="annotations-panel">
-        <strong>Anotaciones en esta página:</strong>
-        <div id="annotationsList"></div>
+      <div id="extractedText">
+        <strong>Texto extraído:</strong>
+        <pre id="textContent"></pre>
+        <button id="copyTextBtn">Copiar</button>
       </div>
 
-      <div class="annotation-controls">
-        <button id="extractTextBtn">Extraer texto de página</button>
-      </div>
-
-      <div id="extractedText" style="margin-top: 1rem; padding: 1rem; background: #f3f4f6; border-radius: 0.5rem; display: none;">
-        <p><strong>Texto extraído:</strong></p>
-        <pre id="textContent" style="white-space: pre-wrap; word-break: break-word;"></pre>
-        <button id="copyTextBtn">Copiar texto</button>
+      <div class="status-bar">
+        <span id="statusMessage">PDF cargado</span>
       </div>
     </div>
-
-    <p><a href="../index.html">Volver</a></p>
-
-    <p style="margin-top:1rem; padding:0.75rem; background-color:#f3f4f6; border-radius:0.5rem; text-align:center; font-size:0.875rem;">
-      ¿Te ahorró tiempo? ¡Un café nos viene bien a ambos! ☕😄
-    </p>
   </main>
 
-  <!-- Librerías -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
   <script>
+    const uploadSection = document.getElementById('uploadSection');
     const pdfFile = document.getElementById('pdfFile');
     const loadPdfBtn = document.getElementById('loadPdfBtn');
-    const editorContainer = document.getElementById('editorContainer');
     const uploadError = document.getElementById('uploadError');
-    const canvas = document.getElementById('pdfCanvas');
-    const ctx = canvas.getContext('2d');
+    const editorContainer = document.getElementById('editorContainer');
+    
+    const pdfCanvas = document.getElementById('pdfCanvas');
+    const annotationCanvas = document.getElementById('annotationCanvas');
+    const pdfPageWrapper = document.getElementById('pdfPageWrapper');
+    
+    const pdfCtx = pdfCanvas.getContext('2d');
+    const annotCtx = annotationCanvas.getContext('2d');
 
-    // Herramientas
     const toolSelect = document.getElementById('toolSelect');
     const colorPicker = document.getElementById('colorPicker');
     const brushSize = document.getElementById('brushSize');
-    const clearCanvasBtn = document.getElementById('clearCanvasBtn');
     const undoBtn = document.getElementById('undoBtn');
+    const clearCanvasBtn = document.getElementById('clearCanvasBtn');
     const downloadPdfBtn = document.getElementById('downloadPdfBtn');
 
-    // Páginas
     const prevPageBtn = document.getElementById('prevPageBtn');
     const nextPageBtn = document.getElementById('nextPageBtn');
     const pageInput = document.getElementById('pageInput');
@@ -244,12 +347,13 @@
     const rotateLeftBtn = document.getElementById('rotateLeftBtn');
     const rotateRightBtn = document.getElementById('rotateRightBtn');
 
-    // Anotaciones
     const annotationsList = document.getElementById('annotationsList');
+    const annotationsListContainer = document.getElementById('annotationsListContainer');
     const extractTextBtn = document.getElementById('extractTextBtn');
     const extractedText = document.getElementById('extractedText');
     const textContent = document.getElementById('textContent');
     const copyTextBtn = document.getElementById('copyTextBtn');
+    const statusMessage = document.getElementById('statusMessage');
 
     let pdfDoc = null;
     let currentPage = 1;
@@ -266,23 +370,26 @@
     clearCanvasBtn.addEventListener('click', clearAnnotations);
     undoBtn.addEventListener('click', undo);
     downloadPdfBtn.addEventListener('click', downloadPdf);
-    prevPageBtn.addEventListener('click', () => { goToPage(currentPage - 1); });
-    nextPageBtn.addEventListener('click', () => { goToPage(currentPage + 1); });
-    pageInput.addEventListener('change', () => { goToPage(parseInt(pageInput.value)); });
-    rotateLeftBtn.addEventListener('click', () => { rotatePage(-90); });
-    rotateRightBtn.addEventListener('click', () => { rotatePage(90); });
+    
+    prevPageBtn.addEventListener('click', () => goToPage(currentPage - 1));
+    nextPageBtn.addEventListener('click', () => goToPage(currentPage + 1));
+    pageInput.addEventListener('change', () => goToPage(parseInt(pageInput.value)));
+    
+    rotateLeftBtn.addEventListener('click', () => rotatePage(-90));
+    rotateRightBtn.addEventListener('click', () => rotatePage(90));
+    
     extractTextBtn.addEventListener('click', extractText);
     copyTextBtn.addEventListener('click', copyText);
 
-    canvas.addEventListener('mousedown', startDrawing);
-    canvas.addEventListener('mousemove', draw);
-    canvas.addEventListener('mouseup', stopDrawing);
-    canvas.addEventListener('mouseout', stopDrawing);
+    annotationCanvas.addEventListener('mousedown', startDrawing);
+    annotationCanvas.addEventListener('mousemove', draw);
+    annotationCanvas.addEventListener('mouseup', stopDrawing);
+    annotationCanvas.addEventListener('mouseout', stopDrawing);
 
-    async function loadPdf(e) {
+    async function loadPdf() {
       uploadError.textContent = '';
       if (!pdfFile.files.length) {
-        uploadError.textContent = 'Selecciona un PDF primero.';
+        uploadError.textContent = 'Selecciona un PDF.';
         return;
       }
 
@@ -296,11 +403,15 @@
           rotations = {};
           annotations = {};
           canvasStates = {};
+          
+          uploadSection.style.display = 'none';
+          editorContainer.style.display = 'flex';
+          
           await renderPage(currentPage);
-          editorContainer.style.display = 'block';
           updatePageInfo();
+          statusMessage.textContent = `PDF: ${file.name}`;
         } catch (err) {
-          uploadError.textContent = `Error cargando PDF: ${err.message}`;
+          uploadError.textContent = `Error: ${err.message}`;
         }
       };
 
@@ -315,21 +426,24 @@
       const viewport = page.getViewport({ scale });
 
       const rotation = rotations[pageNum] || 0;
-      canvas.width = rotation % 180 !== 0 ? viewport.height : viewport.width;
-      canvas.height = rotation % 180 !== 0 ? viewport.width : viewport.height;
+      const finalWidth = rotation % 180 !== 0 ? viewport.height : viewport.width;
+      const finalHeight = rotation % 180 !== 0 ? viewport.width : viewport.height;
 
-      ctx.save();
-      ctx.translate(canvas.width / 2, canvas.height / 2);
-      ctx.rotate((rotation * Math.PI) / 180);
-      ctx.translate(-viewport.width / 2, -viewport.height / 2);
+      pdfCanvas.width = finalWidth;
+      pdfCanvas.height = finalHeight;
+      annotationCanvas.width = finalWidth;
+      annotationCanvas.height = finalHeight;
 
-      await page.render({ canvasContext: ctx, viewport }).promise;
-      ctx.restore();
+      pdfCtx.save();
+      pdfCtx.translate(finalWidth / 2, finalHeight / 2);
+      pdfCtx.rotate((rotation * Math.PI) / 180);
+      pdfCtx.translate(-viewport.width / 2, -viewport.height / 2);
+      await page.render({ canvasContext: pdfCtx, viewport }).promise;
+      pdfCtx.restore();
 
-      // Restaurar anotaciones guardadas
+      annotCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
       if (canvasStates[pageNum]) {
-        const imageData = canvasStates[pageNum];
-        ctx.putImageData(imageData, 0, 0);
+        annotCtx.putImageData(canvasStates[pageNum], 0, 0);
       }
 
       updateAnnotationsPanel();
@@ -339,64 +453,57 @@
       if (currentTool === 'select') return;
 
       isDrawing = true;
-      const rect = canvas.getBoundingClientRect();
+      const rect = annotationCanvas.getBoundingClientRect();
       startX = e.clientX - rect.left;
       startY = e.clientY - rect.top;
 
       if (currentTool === 'text') {
         const text = prompt('Ingresa el texto:');
         if (text) {
-          ctx.font = '14px Arial';
-          ctx.fillStyle = colorPicker.value;
-          ctx.fillText(text, startX, startY);
+          annotCtx.font = '14px Arial';
+          annotCtx.fillStyle = colorPicker.value;
+          annotCtx.fillText(text, startX, startY);
           saveCanvasState();
           addAnnotation('Texto', text);
-        }
-        isDrawing = false;
-      } else if (currentTool === 'note') {
-        const noteText = prompt('Ingresa la nota:');
-        if (noteText) {
-          addAnnotation('Nota', noteText);
         }
         isDrawing = false;
       }
     }
 
     function draw(e) {
-      if (!isDrawing || currentTool === 'select' || currentTool === 'text' || currentTool === 'note') return;
+      if (!isDrawing || currentTool === 'select' || currentTool === 'text') return;
 
-      const rect = canvas.getBoundingClientRect();
+      const rect = annotationCanvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
 
-      ctx.strokeStyle = colorPicker.value;
-      ctx.lineWidth = brushSize.value;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
+      annotCtx.strokeStyle = colorPicker.value;
+      annotCtx.lineWidth = brushSize.value;
+      annotCtx.lineCap = 'round';
+      annotCtx.lineJoin = 'round';
 
       if (currentTool === 'pen' || currentTool === 'highlight') {
-        ctx.globalAlpha = currentTool === 'highlight' ? 0.4 : 1;
-        ctx.beginPath();
-        ctx.moveTo(startX, startY);
-        ctx.lineTo(x, y);
-        ctx.stroke();
-        ctx.globalAlpha = 1;
+        annotCtx.globalAlpha = currentTool === 'highlight' ? 0.4 : 1;
+        annotCtx.beginPath();
+        annotCtx.moveTo(startX, startY);
+        annotCtx.lineTo(x, y);
+        annotCtx.stroke();
+        annotCtx.globalAlpha = 1;
       } else {
-        // Para formas, redibuja el canvas y dibuja la forma
         redrawCanvasState();
 
         if (currentTool === 'line') {
-          ctx.beginPath();
-          ctx.moveTo(startX, startY);
-          ctx.lineTo(x, y);
-          ctx.stroke();
+          annotCtx.beginPath();
+          annotCtx.moveTo(startX, startY);
+          annotCtx.lineTo(x, y);
+          annotCtx.stroke();
         } else if (currentTool === 'rectangle') {
-          ctx.strokeRect(startX, startY, x - startX, y - startY);
+          annotCtx.strokeRect(startX, startY, x - startX, y - startY);
         } else if (currentTool === 'circle') {
           const radius = Math.sqrt(Math.pow(x - startX, 2) + Math.pow(y - startY, 2));
-          ctx.beginPath();
-          ctx.arc(startX, startY, radius, 0, 2 * Math.PI);
-          ctx.stroke();
+          annotCtx.beginPath();
+          annotCtx.arc(startX, startY, radius, 0, 2 * Math.PI);
+          annotCtx.stroke();
         }
       }
 
@@ -414,31 +521,33 @@
     }
 
     function saveCanvasState() {
-      canvasStates[currentPage] = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      canvasStates[currentPage] = annotCtx.getImageData(0, 0, annotationCanvas.width, annotationCanvas.height);
       drawingHistory.push(currentPage);
     }
 
     function redrawCanvasState() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      annotCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
       if (canvasStates[currentPage]) {
-        ctx.putImageData(canvasStates[currentPage], 0, 0);
+        annotCtx.putImageData(canvasStates[currentPage], 0, 0);
       }
     }
 
     function undo() {
       if (drawingHistory.length === 0) return;
-      const pageNum = drawingHistory[drawingHistory.length - 1];
+      const pageNum = drawingHistory.pop();
       delete canvasStates[pageNum];
-      drawingHistory.pop();
-      renderPage(currentPage);
+      if (pageNum === currentPage) {
+        renderPage(currentPage);
+      }
     }
 
     function clearAnnotations() {
-      if (confirm('¿Limpiar todas las anotaciones de esta página?')) {
+      if (confirm('¿Limpiar anotaciones de esta página?')) {
         delete canvasStates[currentPage];
         delete annotations[currentPage];
         drawingHistory = drawingHistory.filter(p => p !== currentPage);
-        renderPage(currentPage);
+        annotCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+        updateAnnotationsPanel();
       }
     }
 
@@ -449,16 +558,18 @@
     }
 
     function updateAnnotationsPanel() {
-      annotationsList.innerHTML = '';
       const pageAnnotations = annotations[currentPage] || [];
+      annotationsListContainer.innerHTML = '';
+      
       if (pageAnnotations.length === 0) {
-        annotationsList.innerHTML = '<p style="font-size: 0.875rem; color: #6b7280;">Sin anotaciones</p>';
+        annotationsList.classList.remove('active');
       } else {
-        pageAnnotations.forEach((ann, idx) => {
+        annotationsList.classList.add('active');
+        pageAnnotations.forEach((ann) => {
           const div = document.createElement('div');
           div.className = 'annotation-item';
-          div.innerHTML = `<strong>${ann.type}</strong> - ${ann.text}<br><small>${ann.time}</small>`;
-          annotationsList.appendChild(div);
+          div.innerHTML = `<strong>${ann.type}</strong>: ${ann.text} <small>${ann.time}</small>`;
+          annotationsListContainer.appendChild(div);
         });
       }
     }
@@ -466,17 +577,18 @@
     async function extractText() {
       if (!pdfDoc) return;
       const page = await pdfDoc.getPage(currentPage);
-      const textContent = await page.getTextContent();
-      const text = textContent.items.map(item => item.str).join(' ');
+      const content = await page.getTextContent();
+      const text = content.items.map(item => item.str).join(' ');
       
-      document.getElementById('textContent').textContent = text || 'No se encontró texto';
-      extractedText.style.display = 'block';
+      textContent.textContent = text || 'No se encontró texto';
+      extractedText.classList.add('active');
     }
 
     function copyText() {
-      navigator.clipboard.writeText(document.getElementById('textContent').textContent);
-      copyTextBtn.textContent = '✅ Copiado';
-      setTimeout(() => { copyTextBtn.textContent = 'Copiar texto'; }, 1500);
+      navigator.clipboard.writeText(textContent.textContent);
+      const oldText = copyTextBtn.textContent;
+      copyTextBtn.textContent = '✓';
+      setTimeout(() => { copyTextBtn.textContent = oldText; }, 1000);
     }
 
     function goToPage(pageNum) {
@@ -485,7 +597,7 @@
         pageInput.value = pageNum;
         updatePageInfo();
         renderPage(currentPage);
-        extractedText.style.display = 'none';
+        extractedText.classList.remove('active');
       }
     }
 
@@ -511,7 +623,6 @@
         if (!isFirst) pdf.addPage();
         isFirst = false;
 
-        // Renderizar página original
         const page = await pdfDoc.getPage(i);
         const scale = 2;
         const viewport = page.getViewport({ scale });
@@ -522,7 +633,6 @@
 
         await page.render({ canvasContext: tempCtx, viewport }).promise;
 
-        // Aplicar rotación si existe
         if (rotations[i]) {
           const rotCanvas = document.createElement('canvas');
           const rotCtx = rotCanvas.getContext('2d');
@@ -538,18 +648,19 @@
           tempCtx.drawImage(rotCanvas, 0, 0);
         }
 
-        // Agregar anotaciones dibujadas
         if (canvasStates[i]) {
-          const annotCanvas = document.createElement('canvas');
-          annotCanvas.width = viewport.width;
-          annotCanvas.height = viewport.height;
-          const annotCtx = annotCanvas.getContext('2d');
+          // Crea un canvas temporal con los datos de anotación originales
+          const annotCanvasTemp = document.createElement('canvas');
+          annotCanvasTemp.width = canvasStates[i].width;
+          annotCanvasTemp.height = canvasStates[i].height;
+          const annotCtxTemp = annotCanvasTemp.getContext('2d');
+          annotCtxTemp.putImageData(canvasStates[i], 0, 0);
           
-          const annotData = canvasStates[i];
-          if (annotData.width === viewport.width && annotData.height === viewport.height) {
-            annotCtx.putImageData(annotData, 0, 0);
-            tempCtx.drawImage(annotCanvas, 0, 0);
-          }
+          // Dibuja las anotaciones escaladas correctamente sobre el PDF
+          // from: (0, 0, annotCanvasTemp.width, annotCanvasTemp.height)
+          // to: (0, 0, tempCanvas.width, tempCanvas.height)
+          tempCtx.drawImage(annotCanvasTemp, 0, 0, annotCanvasTemp.width, annotCanvasTemp.height,
+                            0, 0, tempCanvas.width, tempCanvas.height);
         }
 
         const imgData = tempCanvas.toDataURL('image/png');
@@ -557,6 +668,7 @@
       }
 
       pdf.save('documento_editado.pdf');
+      statusMessage.textContent = 'PDF descargado';
     }
   </script>
 </body>
