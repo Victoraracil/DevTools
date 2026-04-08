@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YAML & XML Formatter - DevTools</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="stylesheet" href="../navbar.css" />
+  <style>
+    main {
+      max-width: 900px !important;
+    }
+
+    .formatter-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+
+    .formatter-section {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .section-title {
+      font-weight: 600;
+      color: #1e293b;
+      font-size: 0.95rem;
+    }
+
+    .type-selector {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    .type-btn {
+      padding: 0.6rem 1rem;
+      border: 2px solid #e2e8f0;
+      background: #f8fafc;
+      color: #1e293b;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+
+    .type-btn:hover {
+      border-color: #2563eb;
+      background: #dbeafe;
+    }
+
+    .type-btn.active {
+      background: #2563eb;
+      color: white;
+      border-color: #2563eb;
+    }
+
+    textarea {
+      padding: 1rem;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      resize: vertical;
+      min-height: 250px;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      color: #1e293b;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    .button-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    button {
+      padding: 0.75rem 1rem;
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      color: white;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      filter: saturate(1.15);
+    }
+
+    .btn-format {
+      background: linear-gradient(120deg, #0f766e, #14b8a6);
+    }
+
+    .btn-copy {
+      background: linear-gradient(120deg, #43e97b, #38f9d7);
+    }
+
+    .btn-clear {
+      background: linear-gradient(120deg, #f093fb, #f5576c);
+    }
+
+    .status-message {
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      text-align: center;
+      margin-top: 0.5rem;
+      display: none;
+      font-weight: 600;
+    }
+
+    .status-message.success {
+      background: #d1fae5;
+      color: #065f46;
+      display: block;
+    }
+
+    .status-message.error {
+      background: #fee2e2;
+      color: #7f1d1d;
+      display: block;
+    }
+
+    .info-box {
+      background: #f0f9ff;
+      border-left: 4px solid #0284c7;
+      padding: 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      color: #0c4a6e;
+      margin-top: 2rem;
+    }
+
+    .info-box strong {
+      color: #0369a1;
+    }
+
+    @media (max-width: 768px) {
+      .formatter-container {
+        grid-template-columns: 1fr;
+      }
+
+      .button-group {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a class="logo" href="../index.html">DevTools</a>
+      <nav class="site-nav">
+        <a class="nav-link" href="../index.html">Inicio</a>
+        <a class="nav-link" href="../apoyo.html">Apoyo</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <h1>📄 YAML & XML Formatter</h1>
+    <p>Formatea y valida YAML y XML. Mejora la legibilidad y detecta errores sintácticos.</p>
+
+    <div class="formatter-container">
+      <div class="formatter-section">
+        <div class="section-title">Entrada</div>
+        <div class="type-selector">
+          <button class="type-btn active" data-type="yaml">YAML</button>
+          <button class="type-btn" data-type="xml">XML</button>
+        </div>
+        <textarea id="inputText" placeholder="Pega tu YAML o XML aquí..."></textarea>
+        <div class="button-group">
+          <button class="btn-format" id="formatBtn">📐 Formatear</button>
+          <button class="btn-copy" id="copyInputBtn">📋 Copiar</button>
+        </div>
+        <div class="status-message" id="inputStatus"></div>
+      </div>
+
+      <div class="formatter-section">
+        <div class="section-title">Salida</div>
+        <div class="type-selector">
+          <button class="type-btn active" data-type="yaml">YAML</button>
+          <button class="type-btn" data-type="xml">XML</button>
+        </div>
+        <textarea id="outputText" placeholder="El resultado formateado aparecerá aquí..." readonly></textarea>
+        <div class="button-group">
+          <button class="btn-copy" id="copyOutputBtn">📋 Copiar</button>
+          <button class="btn-clear" id="clearBtn">🗑️ Limpiar</button>
+        </div>
+        <div class="status-message" id="outputStatus"></div>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <strong>💡 Consejo:</strong> Copia tu YAML o XML en el campo de entrada y haz clic en "Formatear". El formateador corregirá la indentación y detectará errores básicos de sintaxis.
+    </div>
+  </main>
+
+  <script>
+    let currentType = 'yaml';
+    const inputText = document.getElementById('inputText');
+    const outputText = document.getElementById('outputText');
+    const formatBtn = document.getElementById('formatBtn');
+    const copyInputBtn = document.getElementById('copyInputBtn');
+    const copyOutputBtn = document.getElementById('copyOutputBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const inputStatus = document.getElementById('inputStatus');
+    const outputStatus = document.getElementById('outputStatus');
+    const typeBtns = document.querySelectorAll('.type-btn');
+
+    typeBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const buttons = btn.parentElement.querySelectorAll('.type-btn');
+        buttons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentType = btn.dataset.type;
+      });
+    });
+
+    function mostrarStatus(element, mensaje, tipo) {
+      element.textContent = mensaje;
+      element.className = `status-message ${tipo}`;
+      setTimeout(() => {
+        element.className = 'status-message';
+      }, 3000);
+    }
+
+    function copiarAlPortapapeles(texto) {
+      navigator.clipboard.writeText(texto).then(() => {
+        mostrarStatus(outputStatus, '¡Copiado al portapapeles!', 'success');
+      }).catch(() => {
+        mostrarStatus(outputStatus, 'No se pudo copiar', 'error');
+      });
+    }
+
+    function formatearYAML(texto) {
+      try {
+        // Validación básica y formateado de YAML
+        const lineas = texto.split('\n');
+        let indentacion = 0;
+        let resultado = [];
+
+        lineas.forEach(linea => {
+          const trimmed = linea.trim();
+          if (!trimmed || trimmed.startsWith('#')) {
+            resultado.push(linea);
+            return;
+          }
+
+          const leadingSpaces = linea.length - linea.trimStart().length;
+          resultado.push('  '.repeat(indentacion) + trimmed);
+
+          if (trimmed.endsWith(':') && !trimmed.endsWith('":')) {
+            indentacion++;
+          }
+        });
+
+        return resultado.join('\n');
+      } catch (error) {
+        throw new Error(`Error en YAML: ${error.message}`);
+      }
+    }
+
+    function formatearXML(texto) {
+      try {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(texto, 'application/xml');
+
+        if (xmlDoc.getElementsByTagName('parsererror').length > 0) {
+          throw new Error('XML inválido: error de sintaxis');
+        }
+
+        function formatNode(node, indent = 0) {
+          let result = '';
+          const padding = ' '.repeat(indent);
+
+          if (node.nodeType === 1) { // Element
+            result += padding + '<' + node.tagName;
+            for (let attr of node.attributes) {
+              result += ` ${attr.name}="${attr.value}"`;
+            }
+            if (node.childNodes.length === 0) {
+              result += ' />\n';
+            } else {
+              result += '>\n';
+              for (let child of node.childNodes) {
+                result += formatNode(child, indent + 2);
+              }
+              result += padding + '</' + node.tagName + '>\n';
+            }
+          } else if (node.nodeType === 3) { // Text
+            const text = node.textContent.trim();
+            if (text) {
+              result += padding + text + '\n';
+            }
+          }
+          return result;
+        }
+
+        return formatNode(xmlDoc.documentElement);
+      } catch (error) {
+        throw new Error(`Error en XML: ${error.message}`);
+      }
+    }
+
+    formatBtn.addEventListener('click', () => {
+      const texto = inputText.value.trim();
+      if (!texto) {
+        mostrarStatus(inputStatus, 'Ingresa' + (currentType === 'yaml' ? ' YAML' : ' XML'), 'error');
+        return;
+      }
+
+      try {
+        let formateado;
+        if (currentType === 'yaml') {
+          formateado = formatearYAML(texto);
+        } else {
+          formateado = formatearXML(texto);
+        }
+        outputText.value = formateado;
+        mostrarStatus(outputStatus, '✓ ' + currentType.toUpperCase() + ' formateado exitosamente', 'success');
+      } catch (error) {
+        mostrarStatus(outputStatus, error.message, 'error');
+      }
+    });
+
+    copyInputBtn.addEventListener('click', () => {
+      if (inputText.value) copiarAlPortapapeles(inputText.value);
+    });
+
+    copyOutputBtn.addEventListener('click', () => {
+      if (outputText.value) copiarAlPortapapeles(outputText.value);
+    });
+
+    clearBtn.addEventListener('click', () => {
+      inputText.value = '';
+      outputText.value = '';
+      inputStatus.className = 'status-message';
+      outputStatus.className = 'status-message';
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Generador UUID - DevTools</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="stylesheet" href="../navbar.css" />
+  <style>
+    main {
+      max-width: 600px !important;
+    }
+
+    .uuid-container {
+      background: white;
+      padding: 2rem;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 0.5rem;
+    }
+
+    .uuids-list {
+      display: grid;
+      gap: 0.75rem;
+      margin-top: 2rem;
+    }
+
+    .uuid-item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 1rem;
+      align-items: center;
+      padding: 1rem;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      word-break: break-all;
+    }
+
+    .uuid-item:hover {
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+    }
+
+    .uuid-text {
+      color: #1e293b;
+      flex: 1;
+    }
+
+    .uuid-copy-btn {
+      padding: 0.5rem 1rem;
+      background: linear-gradient(120deg, #43e97b, #38f9d7);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: transform 0.2s ease, filter 0.2s ease;
+    }
+
+    .uuid-copy-btn:hover {
+      transform: translateY(-2px);
+      filter: saturate(1.15);
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+
+    button {
+      padding: 0.75rem 1rem;
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      color: white;
+    }
+
+    .btn-generate {
+      background: linear-gradient(120deg, #0f766e, #14b8a6);
+    }
+
+    .btn-generate:hover {
+      transform: translateY(-2px);
+      filter: saturate(1.15);
+    }
+
+    .btn-clear {
+      background: linear-gradient(120deg, #f093fb, #f5576c);
+    }
+
+    .btn-clear:hover {
+      transform: translateY(-2px);
+      filter: saturate(1.15);
+    }
+
+    .status-message {
+      padding: 1rem;
+      border-radius: 10px;
+      text-align: center;
+      margin-top: 1rem;
+      display: none;
+      font-weight: 600;
+    }
+
+    .status-message.success {
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #86efac;
+      display: block;
+    }
+
+    .status-message.error {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+      display: block;
+    }
+
+    .info-box {
+      background: #f0f9ff;
+      border-left: 4px solid #0284c7;
+      padding: 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      color: #0c4a6e;
+      margin-top: 2rem;
+    }
+
+    .info-box strong {
+      color: #0369a1;
+    }
+
+    .uuid-counter {
+      text-align: center;
+      color: #64748b;
+      font-size: 0.85rem;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #e2e8f0;
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a class="logo" href="../index.html">DevTools</a>
+      <nav class="site-nav">
+        <a class="nav-link" href="../index.html">Inicio</a>
+        <a class="nav-link" href="../apoyo.html">Apoyo</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <h1>🔑 Generador UUID</h1>
+    <p>Genera identificadores únicos (UUIDs v4) al instante. Perfectos para bases de datos, APIs y aplicaciones.</p>
+
+    <div class="uuid-container">
+      <form id="uuidForm">
+        <div class="form-group">
+          <label for="uuidCount">¿Cuántos UUIDs generar?</label>
+          <input type="number" id="uuidCount" min="1" max="100" value="1" style="width: 100%; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 10px; color: #1e293b;" />
+        </div>
+
+        <div class="buttons">
+          <button type="button" class="btn-generate" onclick="generarUUIDs()">🔄 Generar</button>
+          <button type="button" class="btn-clear" onclick="limpiar()">🗑️ Limpiar</button>
+        </div>
+
+        <div class="status-message" id="status"></div>
+      </form>
+
+      <div class="uuids-list" id="uuidsList"></div>
+      <div class="uuid-counter" id="counter"></div>
+    </div>
+
+    <div class="info-box">
+      <strong>💡 Información:</strong> UUID v4 genera identificadores únicos aleatorios. Cada UUID tiene una probabilidad ínfima de colisión. Ideal para bases de datos, tokens y identificadores únicos.
+    </div>
+  </main>
+
+  <script>
+    function generarUUID() {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    }
+
+    function mostrarStatus(mensaje, tipo) {
+      const status = document.getElementById('status');
+      status.textContent = mensaje;
+      status.className = `status-message ${tipo}`;
+    }
+
+    function generarUUIDs() {
+      const cantidad = parseInt(document.getElementById('uuidCount').value) || 1;
+      if (cantidad < 1 || cantidad > 100) {
+        mostrarStatus('Por favor ingresa entre 1 y 100', 'error');
+        return;
+      }
+
+      const lista = document.getElementById('uuidsList');
+      lista.innerHTML = '';
+
+      for (let i = 0; i < cantidad; i++) {
+        const uuid = generarUUID();
+        const item = document.createElement('div');
+        item.className = 'uuid-item';
+        item.innerHTML = `
+          <div class="uuid-text">${uuid}</div>
+          <button class="uuid-copy-btn" onclick="copiarUUID('${uuid}')">Copiar</button>
+        `;
+        lista.appendChild(item);
+      }
+
+      actualizarContador();
+      mostrarStatus(`✓ ${cantidad} UUID${cantidad > 1 ? 's' : ''} generado${cantidad > 1 ? 's' : ''}`, 'success');
+    }
+
+    function copiarUUID(uuid) {
+      navigator.clipboard.writeText(uuid).then(() => {
+        mostrarStatus('¡UUID copiado al portapapeles!', 'success');
+      }).catch(() => {
+        mostrarStatus('No se pudo copiar', 'error');
+      });
+    }
+
+    function actualizarContador() {
+      const contador = document.getElementById('counter');
+      const cantidad = document.querySelectorAll('.uuid-item').length;
+      if (cantidad > 0) {
+        contador.textContent = `Total: ${cantidad} UUID${cantidad > 1 ? 's' : ''}`;
+      } else {
+        contador.textContent = '';
+      }
+    }
+
+    function limpiar() {
+      document.getElementById('uuidsList').innerHTML = '';
+      document.getElementById('uuidCount').value = 1;
+      document.getElementById('status').className = 'status-message';
+      document.getElementById('counter').textContent = '';
+    }
+
+    window.copiarUUID = copiarUUID;
+  </script>
+</body>
+</html>

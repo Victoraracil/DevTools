@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RegEx Tester - DevTools</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="stylesheet" href="../navbar.css" />
+  <style>
+    main {
+      max-width: 900px !important;
+    }
+
+    .regex-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+
+    .regex-section {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .section-title {
+      font-weight: 600;
+      color: #1e293b;
+      font-size: 0.95rem;
+    }
+
+    textarea, input[type="text"] {
+      padding: 1rem;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      resize: vertical;
+      min-height: 120px;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      color: #1e293b;
+    }
+
+    textarea:focus, input:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    .options-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+    }
+
+    .option-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem;
+    }
+
+    .option-checkbox input {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+
+    .option-checkbox label {
+      cursor: pointer;
+      color: #1e293b;
+      font-size: 0.9rem;
+      margin: 0;
+    }
+
+    .button-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    button {
+      padding: 0.75rem 1rem;
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      color: white;
+    }
+
+    .btn-test {
+      background: linear-gradient(120deg, #0f766e, #14b8a6);
+    }
+
+    .btn-test:hover {
+      transform: translateY(-2px);
+      filter: saturate(1.15);
+    }
+
+    .btn-clear {
+      background: linear-gradient(120deg, #f093fb, #f5576c);
+    }
+
+    .btn-clear:hover {
+      transform: translateY(-2px);
+      filter: saturate(1.15);
+    }
+
+    .matches-list {
+      background: #f8fafc;
+      border: 2px dashed #e2e8f0;
+      border-radius: 10px;
+      padding: 1rem;
+      min-height: 150px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .match-item {
+      padding: 0.75rem;
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      margin-bottom: 0.5rem;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      color: #1e293b;
+      word-break: break-all;
+    }
+
+    .match-item.highlight {
+      background: #dcfce7;
+      border-color: #86efac;
+    }
+
+    .results-info {
+      padding: 1rem;
+      background: #f0f9ff;
+      border-left: 4px solid #0284c7;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      color: #0c4a6e;
+      margin-top: 1rem;
+    }
+
+    .results-info strong {
+      color: #0369a1;
+    }
+
+    .status-message {
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      text-align: center;
+      margin-top: 0.5rem;
+      display: none;
+      font-weight: 600;
+    }
+
+    .status-message.success {
+      background: #d1fae5;
+      color: #065f46;
+      display: block;
+    }
+
+    .status-message.error {
+      background: #fee2e2;
+      color: #7f1d1d;
+      display: block;
+    }
+
+    .info-box {
+      background: #f0f9ff;
+      border-left: 4px solid #0284c7;
+      padding: 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      color: #0c4a6e;
+      margin-top: 2rem;
+    }
+
+    .info-box strong {
+      color: #0369a1;
+    }
+
+    @media (max-width: 768px) {
+      .regex-container {
+        grid-template-columns: 1fr;
+      }
+
+      .button-group {
+        grid-template-columns: 1fr;
+      }
+
+      .options-row {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a class="logo" href="../index.html">DevTools</a>
+      <nav class="site-nav">
+        <a class="nav-link" href="../index.html">Inicio</a>
+        <a class="nav-link" href="../apoyo.html">Apoyo</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <h1>🔍 RegEx Tester</h1>
+    <p>Prueba y valida expresiones regulares en tiempo real. Perfecto para validación de datos y búsqueda de patrones.</p>
+
+    <div class="regex-container">
+      <div class="regex-section">
+        <div class="section-title">Expresión Regular</div>
+        <input type="text" id="regexPattern" placeholder="/patrón/flags. Ej: /^\w+@\w+\.\w+$/" />
+
+        <div class="section-title">Opciones</div>
+        <div class="options-row">
+          <div class="option-checkbox">
+            <input type="checkbox" id="flagGlobal" checked />
+            <label for="flagGlobal">Global (g)</label>
+          </div>
+          <div class="option-checkbox">
+            <input type="checkbox" id="flagIgnoreCase" />
+            <label for="flagIgnoreCase">Sin caso (i)</label>
+          </div>
+          <div class="option-checkbox">
+            <input type="checkbox" id="flagMultiline" />
+            <label for="flagMultiline">Multilínea (m)</label>
+          </div>
+        </div>
+
+        <div class="section-title" style="margin-top: 1rem;">Texto a probar</div>
+        <textarea id="testText" placeholder="Pega el texto aquí para probar la expresión..."></textarea>
+
+        <div class="button-group">
+          <button class="btn-test" onclick="probarRegex()">✓ Probar</button>
+          <button class="btn-clear" onclick="limpiar()">🗑️ Limpiar</button>
+        </div>
+
+        <div class="status-message" id="status"></div>
+      </div>
+
+      <div class="regex-section">
+        <div class="section-title">Coincidencias encontradas</div>
+        <div class="matches-list" id="matchesList">
+          <div style="color: #94a3b8; text-align: center; padding: 2rem;">Prueba la expresión para ver coincidencias...</div>
+        </div>
+        <div class="results-info" id="resultsInfo"></div>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <strong>💡 Consejo:</strong> Ingresa la expresión regular (con o sin barras), marca las opciones que necesites y escribe el texto a probar. También puedes usar flags en la expresión como /patrón/gi.
+    </div>
+  </main>
+
+  <script>
+    function mostrarStatus(mensaje, tipo) {
+      const status = document.getElementById('status');
+      status.textContent = mensaje;
+      status.className = `status-message ${tipo}`;
+    }
+
+    function probarRegex() {
+      try {
+        const patternInput = document.getElementById('regexPattern').value.trim();
+        const texto = document.getElementById('testText').value;
+        const matchesList = document.getElementById('matchesList');
+        const resultsInfo = document.getElementById('resultsInfo');
+
+        if (!patternInput) {
+          mostrarStatus('Ingresa una expresión regular', 'error');
+          return;
+        }
+
+        if (!texto) {
+          mostrarStatus('Ingresa texto para probar', 'error');
+          return;
+        }
+
+        // Parsear la expresión regular
+        let pattern, flags = '';
+        if (patternInput.startsWith('/')) {
+          const lastSlash = patternInput.lastIndexOf('/');
+          if (lastSlash <= 0) {
+            throw new Error('Formato inválido. Usa /patrón/flags');
+          }
+          pattern = patternInput.slice(1, lastSlash);
+          flags = patternInput.slice(lastSlash + 1);
+        } else {
+          pattern = patternInput;
+          flags = '';
+        }
+
+        // Agregar flags desde checkboxes
+        if (document.getElementById('flagGlobal').checked && !flags.includes('g')) flags += 'g';
+        if (document.getElementById('flagIgnoreCase').checked && !flags.includes('i')) flags += 'i';
+        if (document.getElementById('flagMultiline').checked && !flags.includes('m')) flags += 'm';
+
+        const regex = new RegExp(pattern, flags);
+        const matches = texto.match(regex);
+
+        if (matches) {
+          matchesList.innerHTML = '';
+          matches.forEach((match, i) => {
+            const item = document.createElement('div');
+            item.className = 'match-item highlight';
+            item.textContent = match;
+            matchesList.appendChild(item);
+          });
+          resultsInfo.innerHTML = `<strong>✓ ${matches.length} coincidencia${matches.length !== 1 ? 's' : ''} encontrada${matches.length !== 1 ? 's' : ''}</strong>`;
+          mostrarStatus('✓ Expresión válida', 'success');
+        } else {
+          matchesList.innerHTML = '<div style="color: #94a3b8; text-align: center; padding: 2rem;">No se encontraron coincidencias</div>';
+          resultsInfo.innerHTML = '<strong>ℹ️ No hay coincidencias</strong>';
+          mostrarStatus('Expresión válida pero sin coincidencias', 'success');
+        }
+      } catch (error) {
+        matchesList.innerHTML = '<div style="color: #94a3b8; text-align: center; padding: 2rem;">Error al procesar</div>';
+        document.getElementById('resultsInfo').innerHTML = '';
+        mostrarStatus(`Error: ${error.message}`, 'error');
+      }
+    }
+
+    function limpiar() {
+      document.getElementById('regexPattern').value = '';
+      document.getElementById('testText').value = '';
+      document.getElementById('matchesList').innerHTML = '<div style="color: #94a3b8; text-align: center; padding: 2rem;">Prueba la expresión para ver coincidencias...</div>';
+      document.getElementById('resultsInfo').innerHTML = '';
+      document.getElementById('status').className = 'status-message';
+    }
+
+    document.getElementById('testText').addEventListener('input', () => {
+      if (document.getElementById('regexPattern').value) {
+        probarRegex();
+      }
+    });
+  </script>
+</body>
+</html>

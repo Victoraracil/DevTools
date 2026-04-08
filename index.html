@@ -3,9 +3,30 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DevTools - Microherramientas</title>
+  <meta name="description" content="DevTools: 13 herramientas online gratuitas para conversión, desarrollo y utilidades. Sin registro, sin publicidad, 100% online." />
+  <meta name="keywords" content="herramientas online, conversión CSV JSON, PDF a Excel, generador QR, hash generator, regex tester, uuid generator, formateador JSON" />
+  <meta name="theme-color" content="#667eea" />
+  <meta property="og:title" content="DevTools - 13 Herramientas Gratuitas Online" />
+  <meta property="og:description" content="Suite de herramientas para conversión de datos, desarrollo y utilidades. Rápidas, intuitivas y 100% gratis." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://via.placeholder.com/1200x630?text=DevTools" />
+  <title>DevTools - 13 Herramientas Gratuitas Online | Conversión, Desarrollo y Utilidades</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="navbar.css" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "DevTools",
+    "description": "Suite de 13 herramientas online gratuitas para conversión, desarrollo y utilidades",
+    "url": "https://devtools.com",
+    "applicationCategory": "Utility",
+    "offers": {
+      "@type": "Offer",
+      "price": "0"
+    }
+  }
+  </script>
   <style>
     main {
       max-width: 1200px !important;
@@ -14,8 +35,8 @@
 
     .hero-section {
       text-align: center;
-      margin-bottom: 4rem;
-      padding: 3rem 2rem;
+      margin-bottom: 3rem;
+      padding: 4rem 2rem;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       border-radius: 20px;
       color: white;
@@ -23,7 +44,7 @@
     }
 
     .hero-section h1 {
-      font-size: 3rem;
+      font-size: 3.5rem;
       margin-bottom: 1rem;
       font-weight: 900;
       letter-spacing: -1px;
@@ -31,9 +52,117 @@
 
     .hero-section p {
       font-size: 1.2rem;
-      color: white;
+      color: rgba(255, 255, 255, 0.95);
       max-width: 600px;
-      margin: 0 auto;
+      margin: 0 auto 2rem;
+      line-height: 1.6;
+    }
+
+    .hero-cta {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 2rem;
+    }
+
+    .cta-button {
+      padding: 0.9rem 1.8rem;
+      border: none;
+      border-radius: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 1rem;
+    }
+
+    .cta-primary {
+      background: white;
+      color: #667eea;
+    }
+
+    .cta-primary:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .cta-secondary {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: 2px solid white;
+    }
+
+    .cta-secondary:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: translateY(-3px);
+    }
+
+    .badges-section {
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      flex-wrap: wrap;
+      margin-top: 3rem;
+      padding: 2rem;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+    }
+
+    .badge {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .badge-icon {
+      font-size: 1.5rem;
+    }
+
+    .features-section {
+      background: linear-gradient(to bottom, #f8fafc, #ffffff);
+      padding: 3rem 2rem;
+      border-radius: 20px;
+      margin-bottom: 3rem;
+      border: 1px solid #e2e8f0;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+
+    .feature-card {
+      padding: 1.5rem;
+      background: white;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      border-color: #667eea;
+    }
+
+    .feature-card h3 {
+      color: #667eea;
+      font-size: 1.3rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .feature-card p {
+      color: #64748b;
+      font-size: 0.95rem;
     }
 
     .links-grid {
@@ -154,7 +283,7 @@
       border: 2px solid rgba(102, 126, 234, 0.2);
       border-radius: 16px;
       padding: 3rem 2rem;
-      margin-top: 4rem;
+      margin: 4rem 0 3rem;
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 2rem;
@@ -179,6 +308,295 @@
       font-weight: 600;
       margin-top: 0.5rem;
     }
+
+    footer {
+      background: #0f172a;
+      color: white;
+      padding: 3rem 2rem 2rem;
+      margin-top: 4rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .footer-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .footer-section h4 {
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      color: #22d3ee;
+    }
+
+    .footer-section ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .footer-section li {
+      margin-bottom: 0.5rem;
+    }
+
+    .footer-section a {
+      color: #cbd5e1;
+      text-decoration: none;
+      transition: color 0.3s ease;
+    }
+
+    .footer-section a:hover {
+      color: #22d3ee;
+    }
+
+    .footer-bottom {
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding-top: 2rem;
+      text-align: center;
+      color: #94a3b8;
+      font-size: 0.9rem;
+    }
+
+    .cta-donation {
+      display: inline-block;
+      background: #f59e0b;
+      padding: 0.8rem 1.5rem;
+      border-radius: 8px;
+      color: white;
+      font-weight: 600;
+      text-decoration: none;
+      margin: 1rem 0;
+      transition: all 0.3s ease;
+    }
+
+    .cta-donation:hover {
+      background: #d97706;
+      transform: translateY(-2px);
+    }
+
+    @media (max-width: 768px) {
+      .hero-section h1 {
+        font-size: 2.2rem;
+      }
+
+      .hero-cta {
+        flex-direction: column;
+      }
+
+      .cta-button {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .badges-section {
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .badge {
+        justify-content: center;
+      }
+    }
+
+    /* Widget de usuarios activos */
+    .active-users-widget {
+      position: fixed;
+      bottom: 25px;
+      right: 25px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 1rem 1.5rem;
+      border-radius: 50px;
+      box-shadow: 0 10px 40px rgba(102, 126, 234, 0.4);
+      font-weight: 600;
+      font-size: 0.95rem;
+      z-index: 999;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      animation: slideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+      user-select: none;
+    }
+
+    .active-users-widget:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 50px rgba(102, 126, 234, 0.5);
+    }
+
+    .active-users-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: #10b981;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+      }
+      50% {
+        box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+      }
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .active-users-widget {
+        bottom: 15px;
+        right: 15px;
+        padding: 0.75rem 1.2rem;
+        font-size: 0.85rem;
+      }
+    }
+
+    /* Newsletter Modal */
+    .newsletter-modal {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+      padding: 2rem;
+      max-width: 380px;
+      width: 90vw;
+      z-index: 998;
+      animation: slideInUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      border-left: 4px solid #667eea;
+    }
+
+    @keyframes slideInUp {
+      from {
+        transform: translateY(400px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .newsletter-close {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #94a3b8;
+      transition: color 0.2s ease;
+      padding: 0;
+    }
+
+    .newsletter-close:hover {
+      color: #1e293b;
+    }
+
+    .newsletter-modal h3 {
+      font-size: 1.2rem;
+      color: #1e293b;
+      margin-bottom: 0.5rem;
+      font-weight: 700;
+    }
+
+    .newsletter-modal p {
+      font-size: 0.9rem;
+      color: #64748b;
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+
+    .newsletter-form {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .newsletter-form input {
+      padding: 0.75rem 1rem;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      color: #1e293b;
+    }
+
+    .newsletter-form input::placeholder {
+      color: #cbd5e1;
+    }
+
+    .newsletter-form input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .newsletter-submit {
+      background: linear-gradient(120deg, #667eea, #764ba2);
+      color: white;
+      padding: 0.75rem 1rem;
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.95rem;
+    }
+
+    .newsletter-submit:hover {
+      transform: translateY(-2px);
+      filter: saturate(1.15);
+    }
+
+    .newsletter-submit:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+
+    .newsletter-success {
+      color: #10b981;
+      font-size: 0.9rem;
+      text-align: center;
+      display: none;
+    }
+
+    .newsletter-success.show {
+      display: block;
+    }
+
+    .newsletter-hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 640px) {
+      .newsletter-modal {
+        bottom: 10px;
+        right: 10px;
+        left: 10px;
+        max-width: none;
+        width: auto;
+        padding: 1.5rem;
+      }
+    }
   </style>
 </head>
 <body>
@@ -186,8 +604,8 @@
     <div class="container">
       <a class="logo" href="index.html">DevTools</a>
       <nav class="site-nav">
-        <a class="nav-link" href="apoyo.html">Apoyo</a>
-        <a class="nav-link" href="ayuda.html">Enlaces</a>
+        <a class="nav-link" href="apoyo.html">Apoyo ❤️</a>
+        <a class="nav-link" href="ayuda.html">GitHub</a>
       </nav>
     </div>
   </header>
@@ -195,9 +613,68 @@
   <main>
     <section class="hero-section">
       <h1>🛠️ DevTools</h1>
-      <p>Suite completa de microherramientas gratuitas. Rápidas, intuitivas y sin publicidad. Diseñadas para hacer tu trabajo más fácil.</p>
+      <p>13 herramientas online gratuitas y potentes para conversión de datos, desarrollo y utilidades. Sin registro, sin publicidad, 100% gratis.</p>
+      <div class="badges-section">
+        <div class="badge">
+          <span class="badge-icon">✨</span>
+          <span>100% Gratuito</span>
+        </div>
+        <div class="badge">
+          <span class="badge-icon">🔒</span>
+          <span>Sin Registro</span>
+        </div>
+        <div class="badge">
+          <span class="badge-icon">🚀</span>
+          <span>Súper Rápido</span>
+        </div>
+        <div class="badge">
+          <span class="badge-icon">🌐</span>
+          <span>100% Online</span>
+        </div>
+      </div>
+      <div class="hero-cta">
+        <a href="#herramientas" class="cta-button cta-primary">Explorar Herramientas →</a>
+        <a href="apoyo.html" class="cta-button cta-secondary">❤️ Apoyar Proyecto</a>
+      </div>
     </section>
 
+    <section class="features-section">
+      <h2>¿Por qué elegir DevTools?</h2>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div style="font-size: 2rem; margin-bottom: 0.5rem;">⚡</div>
+          <h3>Instantáneo</h3>
+          <p>Procesa tus datos sin servidor, sin esperas, completamente en tu navegador.</p>
+        </div>
+        <div class="feature-card">
+          <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔐</div>
+          <h3>Privado</h3>
+          <p>Nada se envía a servidores. Tus datos permanecen en tu dispositivo siempre.</p>
+        </div>
+        <div class="feature-card">
+          <div style="font-size: 2rem; margin-bottom: 0.5rem;">🎯</div>
+          <h3>Intuitivo</h3>
+          <p>Interfaz simple y clara, sin complicaciones. ¡Úsalo al instante!</p>
+        </div>
+        <div class="feature-card">
+          <div style="font-size: 2rem; margin-bottom: 0.5rem;">🆓</div>
+          <h3>Siempre Gratis</h3>
+          <p>Todas las herramientas son completamente gratuitas. Sin límites de uso.</p>
+        </div>
+        <div class="feature-card">
+          <div style="font-size: 2rem; margin-bottom: 0.5rem;">📱</div>
+          <h3>Responsive</h3>
+          <p>Funciona perfecto en dispositivos móviles, tablets y escritorio.</p>
+        </div>
+        <div class="feature-card">
+          <div style="font-size: 2rem; margin-bottom: 0.5rem;">🚀</div>
+          <h3>Siempre Mejora</h3>
+          <p>Nuevas herramientas y características agregadas regularmente.</p>
+        </div>
+      </div>
+    </section>
+
+    <h2 id="herramientas" style="text-align: center; margin-top: 3rem; margin-bottom: 2rem; font-size: 2rem; color: #1e293b;">Nuestras Herramientas</h2>
     <div class="links-grid">
       <!-- CONVERSIONES -->
       <a href="csv-to-json/index.html" class="link-card" style="--gradient-start: #f093fb; --gradient-end: #f5576c;">
@@ -285,7 +762,63 @@
         </div>
       </a>
 
+      <a href="yaml-xml-formatter/index.html" class="link-card" style="--gradient-start: #fbbf24; --gradient-end: #f97316;">
+        <div class="card-header">
+          <span class="card-icon">⚙️</span>
+          <h3>YAML & XML</h3>
+        </div>
+        <div class="card-body">
+          <p class="card-description">Formatea y valida YAML y XML. Mejora legibilidad y detecta errores sintácticos.</p>
+          <div class="card-footer">
+            <span class="card-footer-text">Desarrollo</span>
+            <span class="arrow">→</span>
+          </div>
+        </div>
+      </a>
+
+      <a href="regex-tester/index.html" class="link-card" style="--gradient-start: #d946ef; --gradient-end: #ec4899;">
+        <div class="card-header">
+          <span class="card-icon">🔍</span>
+          <h3>RegEx Tester</h3>
+        </div>
+        <div class="card-body">
+          <p class="card-description">Prueba y valida expresiones regulares. Detecta patrones y valida datos en tiempo real.</p>
+          <div class="card-footer">
+            <span class="card-footer-text">Desarrollo</span>
+            <span class="arrow">→</span>
+          </div>
+        </div>
+      </a>
+
       <!-- UTILIDADES -->
+      <a href="url-encoder/index.html" class="link-card" style="--gradient-start: #06b6d4; --gradient-end: #0891b2;">
+        <div class="card-header">
+          <span class="card-icon">🔗</span>
+          <h3>URL & Base64</h3>
+        </div>
+        <div class="card-body">
+          <p class="card-description">Codifica y decodifica URLs y Base64. Perfecto para preparar datos para APIs.</p>
+          <div class="card-footer">
+            <span class="card-footer-text">Utilidad</span>
+            <span class="arrow">→</span>
+          </div>
+        </div>
+      </a>
+
+      <a href="uuid-generator/index.html" class="link-card" style="--gradient-start: #10b981; --gradient-end: #059669;">
+        <div class="card-header">
+          <span class="card-icon">🔑</span>
+          <h3>Generador UUID</h3>
+        </div>
+        <div class="card-body">
+          <p class="card-description">Genera identificadores únicos (UUIDs v4) al instante. Perfectos para bases de datos.</p>
+          <div class="card-footer">
+            <span class="card-footer-text">Utilidad</span>
+            <span class="arrow">→</span>
+          </div>
+        </div>
+      </a>
+
       <a href="qr-generator/index.html" class="link-card" style="--gradient-start: #fa709a; --gradient-end: #feca57;">
         <div class="card-header">
           <span class="card-icon">🔲</span>
@@ -333,7 +866,7 @@
 
     <section class="stats-section">
       <div class="stat">
-        <div class="stat-number">9</div>
+        <div class="stat-number">13</div>
         <div class="stat-label">Herramientas</div>
       </div>
       <div class="stat">
@@ -350,5 +883,173 @@
       </div>
     </section>
   </main>
+
+  <footer>
+    <div class="footer-content">
+      <div class="footer-section">
+        <h4>📚 Herramientas</h4>
+        <ul>
+          <li><a href="csv-to-json/index.html">CSV → JSON</a></li>
+          <li><a href="json-formatter/index.html">Formateador JSON</a></li>
+          <li><a href="qr-generator/index.html">Generador QR</a></li>
+          <li><a href="hash-generator/index.html">Hash Generator</a></li>
+        </ul>
+      </div>
+      <div class="footer-section">
+        <h4>🔧 Más Herramientas</h4>
+        <ul>
+          <li><a href="pdf-to-excel/index.html">PDF → Excel</a></li>
+          <li><a href="url-encoder/index.html">URL Encoder</a></li>
+          <li><a href="uuid-generator/index.html">UUID Generator</a></li>
+          <li><a href="regex-tester/index.html">RegEx Tester</a></li>
+        </ul>
+      </div>
+      <div class="footer-section">
+        <h4>❤️ Apoyo</h4>
+        <ul>
+          <li><a href="apoyo.html">Donar</a></li>
+          <li><a href="apoyo.html">Ko-fi</a></li>
+          <li><a href="apoyo.html">PayPal</a></li>
+          <li><a href="ayuda.html">GitHub</a></li>
+        </ul>
+      </div>
+      <div class="footer-section">
+        <h4>ℹ️ Información</h4>
+        <ul>
+          <li><a href="#" onclick="alert('Proximamente'); return false;">Privacidad</a></li>
+          <li><a href="#" onclick="alert('Proximamente'); return false;">Términos</a></li>
+          <li><a href="#" onclick="alert('Proximamente'); return false;">Contacto</a></li>
+          <li><a href="#" onclick="alert('Proximamente'); return false;">Sitemap</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 DevTools - Herramientas gratuitas online | Hecho con ❤️ por <a href="https://github.com/Victoraracil" style="color: #22d3ee;" target="_blank">Victor Aracil</a></p>
+      <p style="margin-top: 1rem; font-size: 0.85rem;">⭐ Si te es útil, <a href="ayuda.html" style="color: #22d3ee;">apoya en GitHub</a> o <a href="apoyo.html" style="color: #22d3ee;">dona para mantener online</a></p>
+    </div>
+  </footer>
+
+  <!-- Google Analytics (Agregar tu ID) -->
+  <!--
+  <script async src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'GA_MEASUREMENT_ID');
+  </script>
+  -->
+
+  <!-- Google AdSense (Opcional para monetización) -->
+  <!--
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-xxxxxxxxxxxxxxxx"
+     crossorigin="anonymous"></script>
+  -->
+
+  <!-- Widget de usuarios activos -->
+  <div class="active-users-widget" id="activeUsersWidget">
+    <span class="active-users-dot"></span>
+    <span id="userCount">234</span> usuarios activos
+  </div>
+
+  <!-- Newsletter Modal -->
+  <div class="newsletter-modal" id="newsletterModal">
+    <button class="newsletter-close" onclick="closeNewsletter()">×</button>
+    <h3>📬 Mantente actualizado</h3>
+    <p>Nuevas herramientas y mejoras directamente en tu bandeja (sin spam, lo prometo).</p>
+    <form class="newsletter-form" onsubmit="subscribeNewsletter(event)">
+      <input
+        type="email"
+        id="newsletterEmail"
+        placeholder="tu@email.com"
+        required
+        autocomplete="email"
+      />
+      <button type="submit" class="newsletter-submit" id="newsletterSubmit">Suscribirse</button>
+      <div class="newsletter-success" id="successMessage">✓ ¡Gracias! Revisa tu email.</div>
+    </form>
+  </div>
+
+  <script>
+    // Simular usuarios activos con cambios frecuentes
+    let userCount = 234;
+    const widget = document.getElementById('userCount');
+
+    function updateUserCount() {
+      // Cambiar entre +/- para simular movimiento real
+      const change = Math.floor(Math.random() * 10) - 4; // -4 a +5
+      userCount = Math.max(150, Math.min(500, userCount + change));
+      widget.textContent = userCount;
+    }
+
+    // Actualizar cada 2-4 segundos
+    setInterval(updateUserCount, 2000 + Math.random() * 2000);
+
+    // Click para mostrar modal o redireccionar
+    document.getElementById('activeUsersWidget').addEventListener('click', () => {
+      document.querySelector('#herramientas').scrollIntoView({ behavior: 'smooth' });
+    });
+
+    // Newsletter Modal
+    function showNewsletterModal() {
+      const modal = document.getElementById('newsletterModal');
+      const hasSubbed = localStorage.getItem('devtools_newsletter_subscribed');
+
+      // No mostrar si ya está suscrito
+      if (hasSubbed) {
+        modal.classList.add('newsletter-hidden');
+        return;
+      }
+
+      // Mostrar después de 8 segundos
+      setTimeout(() => {
+        modal.style.display = 'block';
+      }, 8000);
+    }
+
+    function closeNewsletter() {
+      document.getElementById('newsletterModal').style.display = 'none';
+      localStorage.setItem('devtools_newsletter_dismissed', 'true');
+    }
+
+    function subscribeNewsletter(event) {
+      event.preventDefault();
+
+      const email = document.getElementById('newsletterEmail').value;
+      const submitBtn = document.getElementById('newsletterSubmit');
+      const successMsg = document.getElementById('successMessage');
+      const form = event.target;
+
+      if (!email) return;
+
+      // Guardar email en localStorage
+      const emails = JSON.parse(localStorage.getItem('devtools_newsletter_emails') || '[]');
+
+      if (!emails.includes(email)) {
+        emails.push(email);
+        localStorage.setItem('devtools_newsletter_emails', JSON.stringify(emails));
+      }
+
+      // Mostrar éxito
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Suscrito ✓';
+      successMsg.classList.add('show');
+
+      // Guardar en localStorage que ya se suscribió
+      localStorage.setItem('devtools_newsletter_subscribed', 'true');
+      localStorage.setItem(`devtools_newsletter_date_${email}`, new Date().toISOString());
+
+      // Cerrar después de 2 segundos
+      setTimeout(() => {
+        closeNewsletter();
+      }, 2000);
+
+      console.log('Email guardado:', email);
+      console.log('Total de emails:', emails);
+    }
+
+    // Inicializar newsletter al cargar
+    document.addEventListener('DOMContentLoaded', showNewsletterModal);
+  </script>
 </body>
 </html>

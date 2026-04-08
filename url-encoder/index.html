@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>URL & Base64 Encoder - DevTools</title>
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="stylesheet" href="../navbar.css" />
+  <style>
+    main {
+      max-width: 800px !important;
+    }
+
+    .encoder-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+
+    .encoder-section {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .section-title {
+      font-weight: 600;
+      color: #1e293b;
+      font-size: 0.95rem;
+    }
+
+    textarea {
+      padding: 1rem;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      resize: vertical;
+      min-height: 200px;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      color: #1e293b;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    .button-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    button {
+      padding: 0.75rem 1rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: transform 0.2s ease, filter 0.2s ease;
+      color: white;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      filter: saturate(1.1);
+    }
+
+    .btn-encode {
+      background: linear-gradient(120deg, #0f766e, #14b8a6);
+    }
+
+    .btn-decode {
+      background: linear-gradient(120deg, #2563eb, #22d3ee);
+    }
+
+    .btn-copy {
+      background: linear-gradient(120deg, #43e97b, #38f9d7);
+    }
+
+    .toggle-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    .toggle-btn {
+      padding: 0.5rem 1rem;
+      font-size: 0.85rem;
+      background: #f0f9ff;
+      color: #0c4a6e;
+      border: 2px solid #0284c7;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-weight: 600;
+    }
+
+    .toggle-btn.active {
+      background: #0284c7;
+      color: white;
+    }
+
+    .toggle-btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .status-message {
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      text-align: center;
+      margin-top: 0.5rem;
+      display: none;
+      font-weight: 600;
+    }
+
+    .status-message.success {
+      background: #d1fae5;
+      color: #065f46;
+      display: block;
+    }
+
+    .status-message.error {
+      background: #fee2e2;
+      color: #7f1d1d;
+      display: block;
+    }
+
+    .info-box {
+      background: #f0f9ff;
+      border-left: 4px solid #0284c7;
+      padding: 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      color: #0c4a6e;
+      margin-top: 2rem;
+    }
+
+    .info-box strong {
+      color: #0369a1;
+    }
+
+    @media (max-width: 768px) {
+      .encoder-container {
+        grid-template-columns: 1fr;
+      }
+
+      .button-group {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a class="logo" href="../index.html">DevTools</a>
+      <nav class="site-nav">
+        <a class="nav-link" href="../index.html">Inicio</a>
+        <a class="nav-link" href="../apoyo.html">Apoyo</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <h1>🔗 URL & Base64 Encoder</h1>
+    <p>Codifica y decodifica URLs y Base64 en tiempo real. Perfecto para manejo de datos y APIs.</p>
+
+    <div class="encoder-container">
+      <div class="encoder-section">
+        <div class="section-title">Entrada</div>
+        <div class="toggle-buttons">
+          <button class="toggle-btn active" data-type="url">URL Encode</button>
+          <button class="toggle-btn" data-type="base64">Base64</button>
+        </div>
+        <textarea id="inputText" placeholder="Pega tu texto aquí..."></textarea>
+        <div class="button-group">
+          <button class="btn-encode" id="encodeBtn">📤 Codificar</button>
+          <button class="btn-copy" id="copyInputBtn">📋 Copiar</button>
+        </div>
+        <div class="status-message" id="inputStatus"></div>
+      </div>
+
+      <div class="encoder-section">
+        <div class="section-title">Salida</div>
+        <div class="toggle-buttons">
+          <button class="toggle-btn active" data-type="url">URL Decode</button>
+          <button class="toggle-btn" data-type="base64">Base64</button>
+        </div>
+        <textarea id="outputText" placeholder="El resultado aparecerá aquí..." readonly></textarea>
+        <div class="button-group">
+          <button class="btn-decode" id="decodeBtn">📥 Decodificar</button>
+          <button class="btn-copy" id="copyOutputBtn">📋 Copiar</button>
+        </div>
+        <div class="status-message" id="outputStatus"></div>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <strong>💡 Consejo:</strong> Selecciona el tipo de codificación (URL o Base64) y usa los botones para codificar/decodificar texto. Perfecto para preparar datos para APIs o URLs.
+    </div>
+  </main>
+
+  <script>
+    let currentType = 'url';
+    const inputText = document.getElementById('inputText');
+    const outputText = document.getElementById('outputText');
+    const encodeBtn = document.getElementById('encodeBtn');
+    const decodeBtn = document.getElementById('decodeBtn');
+    const copyInputBtn = document.getElementById('copyInputBtn');
+    const copyOutputBtn = document.getElementById('copyOutputBtn');
+    const inputStatus = document.getElementById('inputStatus');
+    const outputStatus = document.getElementById('outputStatus');
+    const toggleBtns = document.querySelectorAll('.toggle-btn');
+
+    toggleBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const buttons = btn.parentElement.querySelectorAll('.toggle-btn');
+        buttons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentType = btn.dataset.type;
+      });
+    });
+
+    function showStatus(element, message, type) {
+      element.textContent = message;
+      element.className = `status-message ${type}`;
+      setTimeout(() => {
+        element.className = 'status-message';
+      }, 3000);
+    }
+
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        showStatus(outputStatus, '¡Copiado al portapapeles!', 'success');
+      }).catch(() => {
+        showStatus(outputStatus, 'No se pudo copiar', 'error');
+      });
+    }
+
+    encodeBtn.addEventListener('click', () => {
+      try {
+        const text = inputText.value;
+        if (!text) {
+          showStatus(inputStatus, 'Ingresa texto primero', 'error');
+          return;
+        }
+
+        let encoded;
+        if (currentType === 'url') {
+          encoded = encodeURIComponent(text);
+        } else {
+          encoded = btoa(unescape(encodeURIComponent(text)));
+        }
+        outputText.value = encoded;
+        showStatus(outputStatus, '✓ Codificado exitosamente', 'success');
+      } catch (err) {
+        showStatus(inputStatus, `Error: ${err.message}`, 'error');
+      }
+    });
+
+    decodeBtn.addEventListener('click', () => {
+      try {
+        const text = outputText.value;
+        if (!text) {
+          showStatus(outputStatus, 'Ingresa texto primero', 'error');
+          return;
+        }
+
+        let decoded;
+        if (currentType === 'url') {
+          decoded = decodeURIComponent(text);
+        } else {
+          decoded = decodeURIComponent(atob(text).split('').map((c) => {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+          }).join(''));
+        }
+        inputText.value = decoded;
+        showStatus(inputStatus, '✓ Decodificado exitosamente', 'success');
+      } catch (err) {
+        showStatus(outputStatus, `Error: ${err.message}`, 'error');
+      }
+    });
+
+    copyInputBtn.addEventListener('click', () => {
+      if (inputText.value) copyToClipboard(inputText.value);
+    });
+
+    copyOutputBtn.addEventListener('click', () => {
+      if (outputText.value) copyToClipboard(outputText.value);
+    });
+  </script>
+</body>
+</html>
