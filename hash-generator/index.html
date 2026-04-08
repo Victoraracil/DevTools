@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Generador de Hash - DevTools</title>
+  <link rel="stylesheet" href="../style.css" />
+  <style>
+    .hash-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+
+    .hash-section {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .section-title {
+      font-weight: 600;
+      color: #1e293b;
+      font-size: 0.95rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .form-group label {
+      font-weight: 600;
+      color: #1e293b;
+      font-size: 0.95rem;
+    }
+
+    textarea, input[type="text"], select {
+      padding: 0.75rem;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    textarea:focus, input:focus, select:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    .algorithms-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+    }
+
+    .algo-button {
+      padding: 0.75rem;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      background: #f8fafc;
+      cursor: pointer;
+      font-weight: 600;
+      color: #1e293b;
+      transition: all 0.2s ease;
+    }
+
+    .algo-button:hover {
+      border-color: #2563eb;
+      background: #dbeafe;
+    }
+
+    .algo-button.active {
+      border-color: #2563eb;
+      background: #2563eb;
+      color: white;
+    }
+
+    .button-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    .btn-copy {
+      background: linear-gradient(120deg, #43e97b, #38f9d7) !important;
+    }
+
+    .btn-download {
+      background: linear-gradient(120deg, #4facfe, #00f2fe) !important;
+    }
+
+    .hash-output {
+      padding: 1rem;
+      background: #f8fafc;
+      border: 2px dashed #e2e8f0;
+      border-radius: 10px;
+      font-family: 'Courier New', monospace;
+      word-break: break-all;
+      min-height: 60px;
+      display: flex;
+      align-items: center;
+      color: #1e293b;
+      font-size: 0.9rem;
+    }
+
+    .hash-output.empty {
+      color: #94a3b8;
+    }
+
+    .status-message {
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      text-align: center;
+      margin-top: 0.5rem;
+      display: none;
+    }
+
+    .status-message.success {
+      background: #d1fae5;
+      color: #065f46;
+      display: block;
+    }
+
+    .status-message.error {
+      background: #fee2e2;
+      color: #7f1d1d;
+      display: block;
+    }
+
+    .copy-feedback {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #22c55e;
+      color: white;
+      padding: 1rem 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+      animation: slideIn 0.3s ease, slideOut 0.3s ease 2.7s;
+      z-index: 1000;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    @keyframes slideOut {
+      from {
+        transform: translateX(0);
+        opacity: 1;
+      }
+      to {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+    }
+
+    .hash-list {
+      display: grid;
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+
+    .hash-item {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 0.75rem;
+      align-items: center;
+      padding: 0.75rem;
+      background: #f8fafc;
+      border-radius: 8px;
+      border-left: 4px solid #2563eb;
+    }
+
+    .hash-algo {
+      font-weight: 600;
+      color: #2563eb;
+      min-width: 70px;
+    }
+
+    .hash-value {
+      font-family: 'Courier New', monospace;
+      font-size: 0.8rem;
+      word-break: break-all;
+      color: #1e293b;
+    }
+
+    .hash-copy-btn {
+      padding: 0.4rem 0.75rem;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 600;
+      transition: background 0.2s ease;
+    }
+
+    .hash-copy-btn:hover {
+      background: #1d4ed8;
+    }
+
+    .info-box {
+      background: #f0f9ff;
+      border-left: 4px solid #0284c7;
+      padding: 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      color: #1e293b;
+      margin-top: 2rem;
+    }
+
+    @media (max-width: 768px) {
+      .hash-container {
+        grid-template-columns: 1fr;
+      }
+
+      .algorithms-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .button-group {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a class="logo" href="../index.html">DevTools</a>
+      <nav class="site-nav">
+        <a class="nav-link" href="../index.html">Inicio</a>
+        <a class="nav-link" href="../apoyo.html">Apoyo</a>
+        <a class="nav-link" href="../ayuda.html">Enlaces</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <h1>🔒 Generador de Hash</h1>
+    <p>Genera hashes criptográficos de texto (MD5, SHA1, SHA256, SHA512). Útil para verificación de integridad y seguridad.</p>
+
+    <div class="hash-container">
+      <div class="hash-section">
+        <div class="section-title">Texto de entrada</div>
+        <textarea id="inputText" placeholder="Ingresa el texto o contraseña para generar el hash..."></textarea>
+
+        <div class="form-group">
+          <label>Algoritmos:</label>
+          <div class="algorithms-grid">
+            <button class="algo-button active" data-algo="SHA256">SHA256 ⭐</button>
+            <button class="algo-button" data-algo="SHA1">SHA1</button>
+            <button class="algo-button" data-algo="MD5">MD5</button>
+            <button class="algo-button" data-algo="SHA512">SHA512</button>
+          </div>
+        </div>
+
+        <div class="button-group">
+          <button class="btn-download" id="generateAllBtn">📊 Generar Todo</button>
+          <button class="btn-copy" id="clearBtn" style="background: linear-gradient(120deg, #f093fb, #f5576c) !important;">🗑️ Limpiar</button>
+        </div>
+        <div class="status-message" id="inputStatus"></div>
+      </div>
+
+      <div class="hash-section">
+        <div class="section-title">Hashes generados</div>
+        <div id="hashList" class="hash-list">
+          <div style="text-align: center; color: #94a3b8; padding: 2rem;">Genera hashes para ver aquí...</div>
+        </div>
+        <div class="status-message" id="outputStatus"></div>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <strong>💡 Información:</strong> SHA256 es el más recomendado para la mayoría de usos. MD5 y SHA1 son obsoletos para seguridad crítica. Selecciona el algoritmo y genera todos los hashes a la vez.
+    </div>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+  <script>
+    const inputText = document.getElementById('inputText');
+    const generateAllBtn = document.getElementById('generateAllBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const hashList = document.getElementById('hashList');
+    const inputStatus = document.getElementById('inputStatus');
+    const outputStatus = document.getElementById('outputStatus');
+    const algoButtons = document.querySelectorAll('.algo-button');
+
+    let selectedAlgorithm = 'SHA256';
+
+    function showCopyFeedback(message) {
+      const feedback = document.createElement('div');
+      feedback.className = 'copy-feedback';
+      feedback.textContent = message;
+      document.body.appendChild(feedback);
+      setTimeout(() => feedback.remove(), 3000);
+    }
+
+    function showStatus(element, message, type) {
+      element.textContent = message;
+      element.className = `status-message ${type}`;
+      setTimeout(() => {
+        element.className = 'status-message';
+      }, 3000);
+    }
+
+    function generateHash(text, algorithm) {
+      try {
+        switch (algorithm.toUpperCase()) {
+          case 'MD5':
+            return CryptoJS.MD5(text).toString();
+          case 'SHA1':
+            return CryptoJS.SHA1(text).toString();
+          case 'SHA256':
+            return CryptoJS.SHA256(text).toString();
+          case 'SHA512':
+            return CryptoJS.SHA512(text).toString();
+          default:
+            return CryptoJS.SHA256(text).toString();
+        }
+      } catch (error) {
+        throw new Error(`Error generando ${algorithm}: ${error.message}`);
+      }
+    }
+
+    function generateAllHashes() {
+      const text = inputText.value;
+
+      if (!text) {
+        showStatus(inputStatus, 'Ingresa texto primero', 'error');
+        return;
+      }
+
+      try {
+        const algorithms = ['MD5', 'SHA1', 'SHA256', 'SHA512'];
+        let html = '';
+
+        algorithms.forEach(algo => {
+          const hash = generateHash(text, algo);
+          html += `
+            <div class="hash-item">
+              <div class="hash-algo">${algo}</div>
+              <div class="hash-value">${hash}</div>
+              <button class="hash-copy-btn" onclick="copyHash('${hash}')">Copiar</button>
+            </div>
+          `;
+        });
+
+        hashList.innerHTML = html;
+        showStatus(outputStatus, '✓ Hashes generados exitosamente', 'success');
+      } catch (error) {
+        showStatus(outputStatus, `Error: ${error.message}`, 'error');
+      }
+    }
+
+    function copyHash(hash) {
+      navigator.clipboard.writeText(hash).then(() => {
+        showCopyFeedback('¡Hash copiado al portapapeles!');
+      }).catch(() => {
+        showStatus(outputStatus, 'No se pudo copiar', 'error');
+      });
+    }
+
+    // Event listeners
+    algoButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        algoButtons.forEach(b => b.classList.remove('active'));
+        button.classList.add('active');
+        selectedAlgorithm = button.dataset.algo;
+      });
+    });
+
+    generateAllBtn.addEventListener('click', generateAllHashes);
+
+    clearBtn.addEventListener('click', () => {
+      inputText.value = '';
+      hashList.innerHTML = '<div style="text-align: center; color: #94a3b8; padding: 2rem;">Genera hashes para ver aquí...</div>';
+      inputStatus.className = 'status-message';
+      outputStatus.className = 'status-message';
+    });
+
+    // Generar al pegar
+    inputText.addEventListener('paste', () => {
+      setTimeout(generateAllHashes, 10);
+    });
+
+    // Hacer función global
+    window.copyHash = copyHash;
+  </script>
+</body>
+</html>

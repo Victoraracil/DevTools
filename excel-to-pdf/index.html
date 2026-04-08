@@ -40,7 +40,7 @@
 
   <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
   <script>
     const excelFile = document.getElementById('excelFile');
     const convertBtn = document.getElementById('convertBtn');
@@ -61,37 +61,18 @@
     function parseExcelFile(fileArrayBuffer) {
       try {
         const workbook = XLSX.read(fileArrayBuffer, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-        return { data, sheetName };
+        const sheets = [];
+
+        workbook.SheetNames.forEach(sheetName => {
+          const worksheet = workbook.Sheets[sheetName];
+          const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          sheets.push({ name: sheetName, data });
+        });
+
+        return sheets;
       } catch (err) {
         throw new Error(`Error al leer Excel: ${err.message}`);
       }
-    }
-
-    function makeTableHtml(data, sheetName) {
-      let html = `<h2 style="margin-bottom: 10px;">${sheetName}</h2>`;
-      html += '<table style="width:100%; border-collapse:collapse; font-family:Arial; font-size:11px;">';
-
-      data.forEach((row, rowIdx) => {
-        html += '<tr>';
-        row.forEach((cell, colIdx) => {
-          const bgColor = rowIdx === 0 ? '#4CAF50' : (rowIdx % 2 === 0 ? '#f0f0f0' : '#ffffff');
-          const textColor = rowIdx === 0 ? '#ffffff' : '#000000';
-          const fontWeight = rowIdx === 0 ? 'bold' : 'normal';
-          const padding = '8px';
-          const border = '1px solid #ddd';
-          
-          html += `<td style="background-color:${bgColor}; color:${textColor}; font-weight:${fontWeight}; padding:${padding}; border:${border}; word-wrap:break-word;">
-            ${typeof cell === 'object' && cell !== null ? JSON.stringify(cell) : (cell || '')}
-          </td>`;
-        });
-        html += '</tr>';
-      });
-
-      html += '</table>';
-      return html;
     }
 
     convertBtn.addEventListener('click', () => {
@@ -109,9 +90,9 @@
       reader.onload = async event => {
         try {
           const buffer = event.target.result;
-          const { data, sheetName } = parseExcelFile(buffer);
+          const sheets = parseExcelFile(buffer);
 
-          if (!data.length) {
+          if (!sheets.length || !sheets[0].data.length) {
             throw new Error('El archivo Excel está vacío.');
           }
 
@@ -122,48 +103,75 @@
             format: 'a4'
           });
 
-          const container = document.createElement('div');
-          container.style.width = '280mm';
-          container.style.padding = '10mm';
-          container.style.fontSize = '11px';
-          container.innerHTML = makeTableHtml(data, sheetName);
-          document.body.appendChild(container);
+          let firstSheet = true;
+          let totalRows = 0;
 
-          try {
-            const canvas = await html2canvas(container, {
-              scale: 2,
-              useCORS: true,
-              logging: false,
-              backgroundColor: '#ffffff'
+          sheets.forEach(sheet => {
+            if (!sheet.data.length) return;
+
+            if (!firstSheet) {
+              doc.addPage();
+            }
+            firstSheet = false;
+
+            // Título de la hoja
+            doc.setFontSize(14);
+            doc.text(sheet.name, 15, 15);
+
+            // Preparar datos para autoTable
+            const tableData = sheet.data.map(row =>
+              row.map(cell =>
+                typeof cell === 'object' && cell !== null
+                  ? JSON.stringify(cell)
+                  : (cell === undefined || cell === null ? '' : String(cell))
+              )
+            );
+
+            // Usar autoTable
+            doc.autoTable({
+              head: [tableData[0] || []],
+              body: tableData.slice(1),
+              startY: 25,
+              margin: { top: 10, bottom: 10, left: 10, right: 10 },
+              styles: {
+                fontSize: 10,
+                cellPadding: 3,
+                halign: 'left',
+                valign: 'middle',
+                overflow: 'linebreak'
+              },
+              headStyles: {
+                fillColor: [76, 175, 80],
+                textColor: [255, 255, 255],
+                fontStyle: 'bold',
+                halign: 'left'
+              },
+              alternateRowStyles: {
+                fillColor: [240, 240, 240]
+              },
+              columnStyles: {
+                0: { cellWidth: 'auto' }
+              },
+              didDrawPage: (data) => {
+                // Pie de página con número
+                const pageSize = doc.internal.pageSize;
+                const pageCount = doc.internal.getNumberOfPages();
+                doc.setFontSize(10);
+                doc.text(
+                  `Página ${pageCount}`,
+                  pageSize.getWidth() / 2,
+                  pageSize.getHeight() - 10,
+                  { align: 'center' }
+                );
+              }
             });
 
-            document.body.removeChild(container);
+            totalRows += sheet.data.length;
+          });
 
-            const imgData = canvas.toDataURL('image/png');
-            const imgWidth = 277;
-            const imgHeight = (canvas.height * imgWidth) / canvas.width;
-            let heightLeft = imgHeight;
-            let position = 10;
-
-            const pageHeight = doc.internal.pageSize.getHeight() - 20;
-
-            doc.addImage(imgData, 'PNG', 5, position, imgWidth, imgHeight);
-            heightLeft -= pageHeight;
-
-            while (heightLeft >= 0) {
-              position = heightLeft - imgHeight;
-              doc.addPage();
-              doc.addImage(imgData, 'PNG', 5, position, imgWidth, imgHeight);
-              heightLeft -= pageHeight;
-            }
-
-            generatedPdf = doc;
-            statusEl.textContent = `¡Listo! Hoja "${sheetName}" convertida (${data.length} filas).`;
-            downloadBtn.disabled = false;
-          } catch (err) {
-            document.body.removeChild(container);
-            throw new Error(`Error al generar PDF: ${err.message}`);
-          }
+          generatedPdf = doc;
+          statusEl.textContent = `¡Listo! ${sheets.length} hoja(s) convertida(s) (${totalRows} filas en total).`;
+          downloadBtn.disabled = false;
         } catch (err) {
           errorEl.textContent = `Error: ${err.message}`;
           statusEl.textContent = '';

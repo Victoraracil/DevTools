@@ -69,24 +69,61 @@
             );
           }
           return Promise.all(pagePromises).then(pages => {
-            const lines = [];
+            const allRows = [];
+
             pages.forEach((page, pageIndex) => {
-              let pageText = '';
-              let lastY = null;
+              if (!page.items.length) return;
+
+              // Agrupar items por Y (línea) para detectar filas
+              const itemsByY = {};
               page.items.forEach(item => {
-                if (lastY !== null && Math.abs(item.y - lastY) > 3) {
-                  pageText += '\n';
-                }
-                pageText += item.str + ' ';
-                lastY = item.y;
+                const y = Math.round(item.y);
+                if (!itemsByY[y]) itemsByY[y] = [];
+                itemsByY[y].push(item);
               });
-              const pageLines = pageText.split('\n').map(l => l.trim()).filter(l => l);
-              pageLines.forEach(l => lines.push(l));
-              if (pageIndex < pages.length - 1) {
-                lines.push('');
+
+              const yPositions = Object.keys(itemsByY)
+                .map(Number)
+                .sort((a, b) => b - a); // De arriba a abajo
+
+              // Procesar cada fila
+              yPositions.forEach(y => {
+                const items = itemsByY[y].sort((a, b) => a.x - b.x);
+
+                // Detectar columnas por saltos en posición X
+                const columns = [];
+                let currentCol = [];
+                let lastX = items[0].x;
+
+                items.forEach(item => {
+                  const gap = item.x - lastX;
+
+                  // Si hay un salto significativo (>10 unidades), nueva columna
+                  if (gap > 10 && currentCol.length > 0) {
+                    columns.push(currentCol.map(i => i.str).join('').trim());
+                    currentCol = [];
+                  }
+
+                  currentCol.push(item);
+                  lastX = item.x + item.width;
+                });
+
+                if (currentCol.length > 0) {
+                  columns.push(currentCol.map(i => i.str).join('').trim());
+                }
+
+                if (columns.some(col => col.length > 0)) {
+                  allRows.push(columns);
+                }
+              });
+
+              // Separador entre páginas
+              if (pageIndex < pages.length - 1 && allRows.length > 0) {
+                allRows.push([]);
               }
             });
-            return lines.length ? lines : ['No se encontró texto en el PDF'];
+
+            return allRows.length ? allRows : [['No se encontró texto en el PDF']];
           });
         })
         .catch(err => {
@@ -94,16 +131,29 @@
         });
     }
 
-    function makeXlsxFromLines(lines) {
-      if (!lines.length) throw new Error('No se encontró contenido en el PDF.');
+    function makeXlsxFromData(rows) {
+      if (!rows.length) throw new Error('No se encontró contenido en el PDF.');
 
-      const aoa = lines.map(line => [line]);
-      const ws = XLSX.utils.aoa_to_sheet(aoa);
-      ws['!cols'] = [{ wch: 50 }];
-      
+      // Encontrar número máximo de columnas
+      const maxCols = Math.max(...rows.map(r => r.length));
+
+      // Normalizar todas las filas al mismo número de columnas
+      const normalizedRows = rows.map(row => {
+        const newRow = [...row];
+        while (newRow.length < maxCols) {
+          newRow.push('');
+        }
+        return newRow;
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(normalizedRows);
+
+      // Ajustar ancho de columnas basado en contenido
+      ws['!cols'] = Array(maxCols).fill().map(() => ({ wch: 25 }));
+
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Hoja1');
-      
+      XLSX.utils.book_append_sheet(wb, ws, 'Datos');
+
       const data = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
       return new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     }
@@ -112,7 +162,7 @@
       if (!pdfFile.files.length) return;
 
       errorEl.textContent = '';
-      statusEl.textContent = 'Analizando PDF, espera...' ;
+      statusEl.textContent = 'Analizando PDF, espera...';
       convertBtn.disabled = true;
       downloadBtn.disabled = true;
       generatedBlob = null;
@@ -123,10 +173,10 @@
       reader.onload = async event => {
         try {
           const buffer = event.target.result;
-          const lines = await parsePdfText(buffer);
-          generatedBlob = makeXlsxFromLines(lines);
+          const rows = await parsePdfText(buffer);
+          generatedBlob = makeXlsxFromData(rows);
 
-          statusEl.textContent = `¡Listo! Texto extraído (${lines.length} filas).`; 
+          statusEl.textContent = `¡Listo! Tabla extraída (${rows.length} filas).`;
           downloadBtn.disabled = false;
         } catch (err) {
           errorEl.textContent = `Error: ${err.message}`;
