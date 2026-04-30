@@ -14,10 +14,13 @@ const annotCtx = annotationCanvas.getContext('2d');
 const toolSelect = document.getElementById('toolSelect');
 const colorPicker = document.getElementById('colorPicker');
 const brushSize = document.getElementById('brushSize');
+const fontSizeSlider = document.getElementById('fontSizeSlider');
+const fontSizeDisplay = document.getElementById('fontSizeDisplay');
 const undoBtn = document.getElementById('undoBtn');
 const clearCanvasBtn = document.getElementById('clearCanvasBtn');
 const downloadPdfBtn = document.getElementById('downloadPdfBtn');
 const addTextFieldBtn = document.getElementById('addTextFieldBtn');
+const addCheckboxBtn = document.getElementById('addCheckboxBtn');
 
 const prevPageBtn = document.getElementById('prevPageBtn');
 const nextPageBtn = document.getElementById('nextPageBtn');
@@ -43,16 +46,20 @@ let isDrawing = false;
 let startX, startY;
 let annotations = {};
 let textFields = {}; // Almacena campos de texto editables: {pageNum: [{x, y, width, height, value}, ...]}
+let checkboxes = {}; // Almacena checkboxes: {pageNum: [{x, y, size, checked}, ...]}
 let currentTool = 'select';
 let canvasStates = {};
 let isAddingTextField = false;
+let isAddingCheckbox = false;
 let canvasScale = 1.5; // Escala del canvas para mostrar el PDF
+let fontSize = 12; // Tamaño de fuente para campos de texto
 
 loadPdfBtn.addEventListener('click', loadPdf);
 toolSelect.addEventListener('change', (e) => {
   currentTool = e.target.value;
   addTextFieldBtn.style.display = currentTool === 'textfield' ? 'inline-block' : 'none';
-  annotationCanvas.style.cursor = currentTool === 'textfield' ? 'crosshair' : 'default';
+  addCheckboxBtn.style.display = currentTool === 'checkbox' ? 'inline-block' : 'none';
+  annotationCanvas.style.cursor = (currentTool === 'textfield' || currentTool === 'checkbox') ? 'crosshair' : 'default';
 });
 
 addTextFieldBtn.addEventListener('click', () => {
@@ -61,9 +68,21 @@ addTextFieldBtn.addEventListener('click', () => {
   statusMessage.textContent = 'Haz clic y arrastra para crear un cuadro de texto';
 });
 
+addCheckboxBtn.addEventListener('click', () => {
+  isAddingCheckbox = true;
+  annotationCanvas.style.cursor = 'crosshair';
+  statusMessage.textContent = 'Haz clic y arrastra para crear un checkbox';
+});
+
 clearCanvasBtn.addEventListener('click', clearAnnotations);
 undoBtn.addEventListener('click', undo);
 downloadPdfBtn.addEventListener('click', downloadPdf);
+
+fontSizeSlider.addEventListener('input', (e) => {
+  fontSize = parseInt(e.target.value);
+  fontSizeDisplay.textContent = fontSize;
+  renderPage(currentPage); // Redibujar para mostrar cambios de tamaño
+});
 
 prevPageBtn.addEventListener('click', () => goToPage(currentPage - 1));
 nextPageBtn.addEventListener('click', () => goToPage(currentPage + 1));
@@ -104,6 +123,7 @@ async function loadPdf() {
       rotations = {};
       annotations = {};
       textFields = {};
+      checkboxes = {};
       canvasStates = {};
 
       uploadSection.style.display = 'none';
@@ -150,6 +170,10 @@ async function renderPage(pageNum) {
 
   // Dibujar campos de texto editables
   drawTextFields(pageNum);
+  
+  // Dibujar checkboxes
+  drawCheckboxes(pageNum);
+  
   updateAnnotationsPanel();
 }
 
@@ -166,7 +190,7 @@ function drawTextFields(pageNum) {
 
     // Dibujar texto dentro del campo
     annotCtx.fillStyle = '#1e293b';
-    annotCtx.font = '12px Arial';
+    annotCtx.font = `${fontSize}px Arial`;
     annotCtx.textBaseline = 'top';
     const textX = field.x + 5;
     const textY = field.y + 5;
@@ -185,6 +209,33 @@ function drawTextFields(pageNum) {
   });
 }
 
+function drawCheckboxes(pageNum) {
+  if (!checkboxes[pageNum]) return;
+
+  checkboxes[pageNum].forEach((checkbox) => {
+    // Dibujar cuadrado del checkbox
+    annotCtx.fillStyle = checkbox.checked ? colorPicker.value : '#ffffff';
+    annotCtx.strokeStyle = colorPicker.value;
+    annotCtx.lineWidth = 2;
+    annotCtx.fillRect(checkbox.x, checkbox.y, checkbox.size, checkbox.size);
+    annotCtx.strokeRect(checkbox.x, checkbox.y, checkbox.size, checkbox.size);
+
+    // Dibujar marca de verificación si está marcado
+    if (checkbox.checked) {
+      annotCtx.strokeStyle = '#ffffff';
+      annotCtx.lineWidth = 2;
+      annotCtx.beginPath();
+      const checkSize = checkbox.size * 0.3;
+      const checkX = checkbox.x + checkbox.size * 0.25;
+      const checkY = checkbox.y + checkbox.size * 0.5;
+      annotCtx.moveTo(checkX, checkY);
+      annotCtx.lineTo(checkX + checkSize * 0.4, checkY + checkSize * 0.4);
+      annotCtx.lineTo(checkX + checkSize, checkY - checkSize * 0.3);
+      annotCtx.stroke();
+    }
+  });
+}
+
 function startDrawing(e) {
   if (currentTool === 'select') return;
 
@@ -192,7 +243,22 @@ function startDrawing(e) {
   startX = e.clientX - rect.left;
   startY = e.clientY - rect.top;
 
+  // Detectar clic en checkbox existente
+  if (currentTool === 'checkbox' && !isAddingCheckbox && checkboxes[currentPage]) {
+    for (let i = 0; i < checkboxes[currentPage].length; i++) {
+      const cb = checkboxes[currentPage][i];
+      if (startX >= cb.x && startX <= cb.x + cb.size &&
+          startY >= cb.y && startY <= cb.y + cb.size) {
+        cb.checked = !cb.checked;
+        renderPage(currentPage);
+        return;
+      }
+    }
+  }
+
   if (currentTool === 'textfield' && isAddingTextField) {
+    isDrawing = true;
+  } else if (currentTool === 'checkbox' && isAddingCheckbox) {
     isDrawing = true;
   } else if (currentTool === 'text') {
     const text = prompt('Ingresa el texto:');
@@ -205,7 +271,7 @@ function startDrawing(e) {
       saveCanvasState();
       addAnnotation('Texto', text);
     }
-  } else if (currentTool !== 'textfield') {
+  } else if (currentTool !== 'textfield' && currentTool !== 'checkbox') {
     isDrawing = true;
   }
 }
@@ -227,6 +293,22 @@ function draw(e) {
     annotCtx.lineWidth = 2;
     annotCtx.setLineDash([5, 5]);
     annotCtx.strokeRect(startX, startY, x - startX, y - startY);
+    annotCtx.setLineDash([]);
+    return;
+  }
+
+  if (currentTool === 'checkbox') {
+    // Mostrar previsualización del checkbox mientras se arrastra
+    redrawCanvasState();
+    drawTextFields(currentPage);
+    drawCheckboxes(currentPage);
+    
+    // Dibujar checkbox de previsualización
+    const size = Math.max(Math.abs(x - startX), Math.abs(y - startY));
+    annotCtx.strokeStyle = colorPicker.value;
+    annotCtx.lineWidth = 2;
+    annotCtx.setLineDash([5, 5]);
+    annotCtx.strokeRect(startX, startY, size, size);
     annotCtx.setLineDash([]);
     return;
   }
@@ -278,7 +360,7 @@ function stopDrawing(e) {
     const width = Math.abs(endX - startX);
     const height = Math.abs(endY - startY);
 
-    if (width > 20 && height > 20) {
+    if (width > 5 && height > 5) {
       if (!textFields[currentPage]) textFields[currentPage] = [];
       
       const fieldValue = prompt('Valor inicial del cuadro (opcional):') || '';
@@ -288,6 +370,23 @@ function stopDrawing(e) {
       addAnnotation('Campo de Texto', fieldValue || '(vacío)');
       isAddingTextField = false;
       statusMessage.textContent = 'Cuadro de texto añadido';
+    }
+  } else if (currentTool === 'checkbox' && isAddingCheckbox) {
+    const rect = annotationCanvas.getBoundingClientRect();
+    const endX = e.clientX - rect.left;
+    const endY = e.clientY - rect.top;
+
+    const size = Math.max(Math.abs(endX - startX), Math.abs(endY - startY));
+
+    if (size > 5) {
+      if (!checkboxes[currentPage]) checkboxes[currentPage] = [];
+      
+      checkboxes[currentPage].push({ x: startX, y: startY, size, checked: false });
+      
+      renderPage(currentPage);
+      addAnnotation('Checkbox', '(sin marcar)');
+      isAddingCheckbox = false;
+      statusMessage.textContent = 'Checkbox añadido';
     }
   } else if (currentTool === 'pen' || currentTool === 'highlight' ||
     currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
@@ -324,6 +423,7 @@ function clearAnnotations() {
     delete canvasStates[currentPage];
     delete annotations[currentPage];
     delete textFields[currentPage];
+    delete checkboxes[currentPage];
     drawingHistory = drawingHistory.filter(p => p !== currentPage);
     annotCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
     updateAnnotationsPanel();
@@ -444,10 +544,45 @@ async function downloadPdf() {
             textField.setText(field.value);
             textField.setAlignment('Left');
             textField.addToPage(page, { x, y, width: fieldWidth, height: fieldHeight });
-            textField.setFontSize(12);
+            textField.setFontSize(fontSize);
             console.log(`  ✓ Campo ${index} agregado exitosamente`);
           } catch (fieldErr) {
             console.warn(`  ✗ Error al agregar campo ${index}:`, fieldErr);
+          }
+        });
+      }
+
+      // Agregar checkboxes si existen
+      if (checkboxes[i] && checkboxes[i].length > 0) {
+        console.log(`Agregando ${checkboxes[i].length} checkboxes a la página ${i}`);
+        const form = pdfDocLib.getForm();
+        
+        checkboxes[i].forEach((checkbox, index) => {
+          const checkboxName = `Checkbox_P${i}_C${index}`;
+          
+          // Convertir coordenadas del canvas a coordenadas del PDF proporcionalmente
+          const scaleX = width / annotationCanvas.width;
+          const scaleY = height / annotationCanvas.height;
+          
+          const x = checkbox.x * scaleX;
+          const y_from_top = checkbox.y * scaleY;
+          const checkboxSize = checkbox.size * scaleX;
+          
+          // Invertir Y: en PDF y=0 está en la PARTE INFERIOR, en canvas y=0 está ARRIBA
+          const y = height - y_from_top - checkboxSize;
+          
+          console.log(`  Checkbox ${index}: canvas(${checkbox.x},${checkbox.y},${checkbox.size}) -> pdf(${x.toFixed(2)},${y.toFixed(2)},${checkboxSize.toFixed(2)})`);
+          
+          try {
+            // Crear checkbox
+            const checkboxField = form.createCheckBox(checkboxName);
+            if (checkbox.checked) {
+              checkboxField.check();
+            }
+            checkboxField.addToPage(page, { x, y, width: checkboxSize, height: checkboxSize });
+            console.log(`  ✓ Checkbox ${index} agregado exitosamente`);
+          } catch (checkboxErr) {
+            console.warn(`  ✗ Error al agregar checkbox ${index}:`, checkboxErr);
           }
         });
       }
