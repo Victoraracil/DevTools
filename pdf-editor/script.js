@@ -17,6 +17,7 @@ const brushSize = document.getElementById('brushSize');
 const undoBtn = document.getElementById('undoBtn');
 const clearCanvasBtn = document.getElementById('clearCanvasBtn');
 const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+const addTextFieldBtn = document.getElementById('addTextFieldBtn');
 
 const prevPageBtn = document.getElementById('prevPageBtn');
 const nextPageBtn = document.getElementById('nextPageBtn');
@@ -34,17 +35,32 @@ const copyTextBtn = document.getElementById('copyTextBtn');
 const statusMessage = document.getElementById('statusMessage');
 
 let pdfDoc = null;
+let originalPdfBlob = null;
 let currentPage = 1;
 let rotations = {};
 let drawingHistory = [];
 let isDrawing = false;
 let startX, startY;
 let annotations = {};
+let textFields = {}; // Almacena campos de texto editables: {pageNum: [{x, y, width, height, value}, ...]}
 let currentTool = 'select';
 let canvasStates = {};
+let isAddingTextField = false;
+let canvasScale = 1.5; // Escala del canvas para mostrar el PDF
 
 loadPdfBtn.addEventListener('click', loadPdf);
-toolSelect.addEventListener('change', (e) => { currentTool = e.target.value; });
+toolSelect.addEventListener('change', (e) => {
+  currentTool = e.target.value;
+  addTextFieldBtn.style.display = currentTool === 'textfield' ? 'inline-block' : 'none';
+  annotationCanvas.style.cursor = currentTool === 'textfield' ? 'crosshair' : 'default';
+});
+
+addTextFieldBtn.addEventListener('click', () => {
+  isAddingTextField = true;
+  annotationCanvas.style.cursor = 'crosshair';
+  statusMessage.textContent = 'Haz clic y arrastra para crear un cuadro de texto';
+});
+
 clearCanvasBtn.addEventListener('click', clearAnnotations);
 undoBtn.addEventListener('click', undo);
 downloadPdfBtn.addEventListener('click', downloadPdf);
@@ -72,14 +88,22 @@ async function loadPdf() {
   }
 
   const file = pdfFile.files[0];
+  
+  // Guardar el blob original directamente
+  originalPdfBlob = file;
+  
   const reader = new FileReader();
 
   reader.onload = async (event) => {
     try {
-      pdfDoc = await pdfjsLib.getDocument({ data: event.target.result }).promise;
+      const arrayBuffer = event.target.result;
+      
+      // Para pdfjsLib, usar los datos del FileReader
+      pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       currentPage = 1;
       rotations = {};
       annotations = {};
+      textFields = {};
       canvasStates = {};
 
       uploadSection.style.display = 'none';
@@ -124,18 +148,53 @@ async function renderPage(pageNum) {
     annotCtx.putImageData(canvasStates[pageNum], 0, 0);
   }
 
+  // Dibujar campos de texto editables
+  drawTextFields(pageNum);
   updateAnnotationsPanel();
+}
+
+function drawTextFields(pageNum) {
+  if (!textFields[pageNum]) return;
+
+  textFields[pageNum].forEach((field) => {
+    // Dibujar rectángulo del campo
+    annotCtx.strokeStyle = '#0f766e';
+    annotCtx.lineWidth = 2;
+    annotCtx.setLineDash([5, 5]);
+    annotCtx.strokeRect(field.x, field.y, field.width, field.height);
+    annotCtx.setLineDash([]);
+
+    // Dibujar texto dentro del campo
+    annotCtx.fillStyle = '#1e293b';
+    annotCtx.font = '12px Arial';
+    annotCtx.textBaseline = 'top';
+    const textX = field.x + 5;
+    const textY = field.y + 5;
+    const maxWidth = field.width - 10;
+    
+    // Truncar texto si es muy largo
+    let displayText = field.value;
+    const metrics = annotCtx.measureText(displayText);
+    if (metrics.width > maxWidth) {
+      while (displayText.length > 0 && annotCtx.measureText(displayText + '...').width > maxWidth) {
+        displayText = displayText.slice(0, -1);
+      }
+      displayText += '...';
+    }
+    annotCtx.fillText(displayText, textX, textY);
+  });
 }
 
 function startDrawing(e) {
   if (currentTool === 'select') return;
 
-  isDrawing = true;
   const rect = annotationCanvas.getBoundingClientRect();
   startX = e.clientX - rect.left;
   startY = e.clientY - rect.top;
 
-  if (currentTool === 'text') {
+  if (currentTool === 'textfield' && isAddingTextField) {
+    isDrawing = true;
+  } else if (currentTool === 'text') {
     const text = prompt('Ingresa el texto:');
     if (text) {
       annotCtx.font = '14px Arial';
@@ -146,16 +205,31 @@ function startDrawing(e) {
       saveCanvasState();
       addAnnotation('Texto', text);
     }
-    isDrawing = false;
+  } else if (currentTool !== 'textfield') {
+    isDrawing = true;
   }
 }
 
 function draw(e) {
-  if (!isDrawing || currentTool === 'select' || currentTool === 'text') return;
+  if (!isDrawing) return;
 
   const rect = annotationCanvas.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
+
+  if (currentTool === 'textfield') {
+    // Mostrar previsualización del cuadro mientras se arrastra
+    redrawCanvasState();
+    drawTextFields(currentPage);
+    
+    // Dibujar rectángulo de previsualización
+    annotCtx.strokeStyle = '#0f766e';
+    annotCtx.lineWidth = 2;
+    annotCtx.setLineDash([5, 5]);
+    annotCtx.strokeRect(startX, startY, x - startX, y - startY);
+    annotCtx.setLineDash([]);
+    return;
+  }
 
   annotCtx.strokeStyle = colorPicker.value;
   annotCtx.lineWidth = brushSize.value;
@@ -191,12 +265,36 @@ function draw(e) {
   startY = y;
 }
 
-function stopDrawing() {
-  if (isDrawing && (currentTool === 'pen' || currentTool === 'highlight' ||
-    currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle')) {
+function stopDrawing(e) {
+  if (!isDrawing) return;
+
+  if (currentTool === 'textfield' && isAddingTextField) {
+    const rect = annotationCanvas.getBoundingClientRect();
+    const endX = e.clientX - rect.left;
+    const endY = e.clientY - rect.top;
+
+    const x = Math.min(startX, endX);
+    const y = Math.min(startY, endY);
+    const width = Math.abs(endX - startX);
+    const height = Math.abs(endY - startY);
+
+    if (width > 20 && height > 20) {
+      if (!textFields[currentPage]) textFields[currentPage] = [];
+      
+      const fieldValue = prompt('Valor inicial del cuadro (opcional):') || '';
+      textFields[currentPage].push({ x, y, width, height, value: fieldValue });
+      
+      renderPage(currentPage);
+      addAnnotation('Campo de Texto', fieldValue || '(vacío)');
+      isAddingTextField = false;
+      statusMessage.textContent = 'Cuadro de texto añadido';
+    }
+  } else if (currentTool === 'pen' || currentTool === 'highlight' ||
+    currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
     saveCanvasState();
     addAnnotation(currentTool, '');
   }
+
   isDrawing = false;
 }
 
@@ -225,6 +323,7 @@ function clearAnnotations() {
   if (confirm('¿Limpiar anotaciones de esta página?')) {
     delete canvasStates[currentPage];
     delete annotations[currentPage];
+    delete textFields[currentPage];
     drawingHistory = drawingHistory.filter(p => p !== currentPage);
     annotCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
     updateAnnotationsPanel();
@@ -293,56 +392,106 @@ function updatePageInfo() {
 }
 
 async function downloadPdf() {
-  if (!pdfDoc) return;
+  if (!pdfDoc || !originalPdfBlob) return;
 
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF();
-  let isFirst = true;
+  try {
+    statusMessage.textContent = 'Procesando PDF...';
+    
+    // Leer el blob cada vez que lo necesitemos
+    const arrayBuffer = await originalPdfBlob.arrayBuffer();
+    
+    // Acceder a pdf-lib
+    const PDFDocument = window.PDFLib.PDFDocument;
+    
+    // Cargar el PDF con pdf-lib
+    const pdfDocLib = await PDFDocument.load(arrayBuffer);
+    
+    console.log('Campos de texto a agregar:', textFields);
+    
+    // Procesar cada página
+    for (let i = 1; i <= pdfDocLib.getPageCount(); i++) {
+      const page = pdfDocLib.getPage(i - 1);
+      const { width, height } = page.getSize();
+      
+      console.log(`Página ${i}: ancho=${width}, alto=${height}`);
 
-  for (let i = 1; i <= pdfDoc.numPages; i++) {
-    if (!isFirst) pdf.addPage();
-    isFirst = false;
+      // Agregar campos de texto si existen
+      if (textFields[i] && textFields[i].length > 0) {
+        console.log(`Agregando ${textFields[i].length} campos a la página ${i}`);
+        const form = pdfDocLib.getForm();
+        
+        textFields[i].forEach((field, index) => {
+          const fieldName = `TextField_P${i}_F${index}`;
+          
+          // Convertir coordenadas del canvas a coordenadas del PDF proporcionalmente
+          // Las coordenadas está en píxeles del canvas que tiene las dimensiones con scale
+          const scaleX = width / annotationCanvas.width;
+          const scaleY = height / annotationCanvas.height;
+          
+          const x = field.x * scaleX;
+          const y_from_top = field.y * scaleY;
+          const fieldWidth = field.width * scaleX;
+          const fieldHeight = field.height * scaleY;
+          
+          // Invertir Y: en PDF y=0 está en la PARTE INFERIOR, en canvas y=0 está ARRIBA
+          const y = height - y_from_top - fieldHeight;
+          
+          console.log(`  Campo ${index}: canvas(${field.x},${field.y},${field.width},${field.height}) -> pdf(${x.toFixed(2)},${y.toFixed(2)},${fieldWidth.toFixed(2)},${fieldHeight.toFixed(2)})`);
+          
+          try {
+            // Crear campo de texto
+            const textField = form.createTextField(fieldName);
+            textField.setText(field.value);
+            textField.setAlignment('Left');
+            textField.addToPage(page, { x, y, width: fieldWidth, height: fieldHeight });
+            textField.setFontSize(12);
+            console.log(`  ✓ Campo ${index} agregado exitosamente`);
+          } catch (fieldErr) {
+            console.warn(`  ✗ Error al agregar campo ${index}:`, fieldErr);
+          }
+        });
+      }
 
-    const page = await pdfDoc.getPage(i);
-    const scale = 2;
-    const viewport = page.getViewport({ scale });
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = viewport.width;
-    tempCanvas.height = viewport.height;
-    const tempCtx = tempCanvas.getContext('2d');
-
-    await page.render({ canvasContext: tempCtx, viewport }).promise;
-
-    if (rotations[i]) {
-      const rotCanvas = document.createElement('canvas');
-      const rotCtx = rotCanvas.getContext('2d');
-      const angle = rotations[i];
-      rotCanvas.width = angle % 180 !== 0 ? tempCanvas.height : tempCanvas.width;
-      rotCanvas.height = angle % 180 !== 0 ? tempCanvas.width : tempCanvas.height;
-      rotCtx.translate(rotCanvas.width / 2, rotCanvas.height / 2);
-      rotCtx.rotate((angle * Math.PI) / 180);
-      rotCtx.drawImage(tempCanvas, -tempCanvas.width / 2, -tempCanvas.height / 2);
-      tempCanvas.width = rotCanvas.width;
-      tempCanvas.height = rotCanvas.height;
-      tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
-      tempCtx.drawImage(rotCanvas, 0, 0);
+      // Agregar anotaciones de canvas (como imágenes)
+      if (canvasStates[i]) {
+        try {
+          // Crear un canvas temporal para renderizar las anotaciones
+          const annotCanvasTemp = document.createElement('canvas');
+          annotCanvasTemp.width = canvasStates[i].width;
+          annotCanvasTemp.height = canvasStates[i].height;
+          const annotCtxTemp = annotCanvasTemp.getContext('2d');
+          annotCtxTemp.putImageData(canvasStates[i], 0, 0);
+          
+          const imgData = annotCanvasTemp.toDataURL('image/png');
+          const blob = await (await fetch(imgData)).blob();
+          const imgBytes = await blob.arrayBuffer();
+          
+          const image = await pdfDocLib.embedPng(imgBytes);
+          page.drawImage(image, {
+            x: 0,
+            y: 0,
+            width: width,
+            height: height
+          });
+        } catch (imgErr) {
+          console.warn('Error al agregar anotaciones:', imgErr);
+        }
+      }
     }
 
-    if (canvasStates[i]) {
-      const annotCanvasTemp = document.createElement('canvas');
-      annotCanvasTemp.width = canvasStates[i].width;
-      annotCanvasTemp.height = canvasStates[i].height;
-      const annotCtxTemp = annotCanvasTemp.getContext('2d');
-      annotCtxTemp.putImageData(canvasStates[i], 0, 0);
-
-      tempCtx.drawImage(annotCanvasTemp, 0, 0, annotCanvasTemp.width, annotCanvasTemp.height,
-        0, 0, tempCanvas.width, tempCanvas.height);
-    }
-
-    const imgData = tempCanvas.toDataURL('image/png');
-    pdf.addImage(imgData, 'PNG', 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
+    // Guardar el PDF
+    const modifiedPdfBytes = await pdfDocLib.save();
+    const blob = new Blob([modifiedPdfBytes], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'documento_editado.pdf';
+    link.click();
+    URL.revokeObjectURL(url);
+    
+    statusMessage.textContent = 'PDF descargado correctamente';
+  } catch (err) {
+    statusMessage.textContent = `Error al descargar: ${err.message}`;
+    console.error('Error completo:', err);
   }
-
-  pdf.save('documento_editado.pdf');
-  statusMessage.textContent = 'PDF descargado';
 }
