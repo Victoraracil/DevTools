@@ -401,73 +401,11 @@
       }
     }
 
-    /* Widget de usuarios activos */
-    .active-users-widget {
-      position: fixed;
-      bottom: 25px;
-      right: 25px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 1rem 1.5rem;
-      border-radius: 50px;
-      box-shadow: 0 10px 40px rgba(102, 126, 234, 0.4);
-      font-weight: 600;
-      font-size: 0.95rem;
-      z-index: 999;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      animation: slideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-      user-select: none;
-    }
 
-    .active-users-widget:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 15px 50px rgba(102, 126, 234, 0.5);
-    }
-
-    .active-users-dot {
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      background: #10b981;
-      border-radius: 50%;
-      animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% {
-        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
-      }
-      50% {
-        box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
-      }
-    }
-
-    @keyframes slideIn {
-      from {
-        transform: translateX(400px);
-        opacity: 0;
-      }
-      to {
-        transform: translateX(0);
-        opacity: 1;
-      }
-    }
-
-    @media (max-width: 640px) {
-      .active-users-widget {
-        bottom: 15px;
-        right: 15px;
-        padding: 0.75rem 1.2rem;
-        font-size: 0.85rem;
-      }
-    }
 
     /* Newsletter Modal */
     .newsletter-modal {
+      display: none !important;
       position: fixed;
       bottom: 20px;
       right: 20px;
@@ -946,12 +884,6 @@
      crossorigin="anonymous"></script>
   -->
 
-  <!-- Widget de usuarios activos -->
-  <div class="active-users-widget" id="activeUsersWidget">
-    <span class="active-users-dot"></span>
-    <span id="userCount">234</span> usuarios activos
-  </div>
-
   <!-- Newsletter Modal -->
   <div class="newsletter-modal" id="newsletterModal">
     <button class="newsletter-close" onclick="closeNewsletter()">×</button>
@@ -970,86 +902,6 @@
     </form>
   </div>
 
-  <script>
-    // Simular usuarios activos con cambios frecuentes
-    let userCount = 234;
-    const widget = document.getElementById('userCount');
 
-    function updateUserCount() {
-      // Cambiar entre +/- para simular movimiento real
-      const change = Math.floor(Math.random() * 10) - 4; // -4 a +5
-      userCount = Math.max(150, Math.min(500, userCount + change));
-      widget.textContent = userCount;
-    }
-
-    // Actualizar cada 2-4 segundos
-    setInterval(updateUserCount, 2000 + Math.random() * 2000);
-
-    // Click para mostrar modal o redireccionar
-    document.getElementById('activeUsersWidget').addEventListener('click', () => {
-      document.querySelector('#herramientas').scrollIntoView({ behavior: 'smooth' });
-    });
-
-    // Newsletter Modal
-    function showNewsletterModal() {
-      const modal = document.getElementById('newsletterModal');
-      const hasSubbed = localStorage.getItem('devtools_newsletter_subscribed');
-
-      // No mostrar si ya está suscrito
-      if (hasSubbed) {
-        modal.classList.add('newsletter-hidden');
-        return;
-      }
-
-      // Mostrar después de 8 segundos
-      setTimeout(() => {
-        modal.style.display = 'block';
-      }, 8000);
-    }
-
-    function closeNewsletter() {
-      document.getElementById('newsletterModal').style.display = 'none';
-      localStorage.setItem('devtools_newsletter_dismissed', 'true');
-    }
-
-    function subscribeNewsletter(event) {
-      event.preventDefault();
-
-      const email = document.getElementById('newsletterEmail').value;
-      const submitBtn = document.getElementById('newsletterSubmit');
-      const successMsg = document.getElementById('successMessage');
-      const form = event.target;
-
-      if (!email) return;
-
-      // Guardar email en localStorage
-      const emails = JSON.parse(localStorage.getItem('devtools_newsletter_emails') || '[]');
-
-      if (!emails.includes(email)) {
-        emails.push(email);
-        localStorage.setItem('devtools_newsletter_emails', JSON.stringify(emails));
-      }
-
-      // Mostrar éxito
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'Suscrito ✓';
-      successMsg.classList.add('show');
-
-      // Guardar en localStorage que ya se suscribió
-      localStorage.setItem('devtools_newsletter_subscribed', 'true');
-      localStorage.setItem(`devtools_newsletter_date_${email}`, new Date().toISOString());
-
-      // Cerrar después de 2 segundos
-      setTimeout(() => {
-        closeNewsletter();
-      }, 2000);
-
-      console.log('Email guardado:', email);
-      console.log('Total de emails:', emails);
-    }
-
-    // Inicializar newsletter al cargar
-    document.addEventListener('DOMContentLoaded', showNewsletterModal);
-  </script>
 </body>
 </html>

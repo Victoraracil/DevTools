@@ -37,6 +37,13 @@ const textContent = document.getElementById('textContent');
 const copyTextBtn = document.getElementById('copyTextBtn');
 const statusMessage = document.getElementById('statusMessage');
 
+// Elementos de la barra de herramientas de formato de texto
+const textFormatToolbar = document.getElementById('textFormatToolbar');
+const boldBtn = document.getElementById('boldBtn');
+const italicBtn = document.getElementById('italicBtn');
+const underlineBtn = document.getElementById('underlineBtn');
+const textColorPicker = document.getElementById('textColorPicker');
+
 let pdfDoc = null;
 let originalPdfBlob = null;
 let currentPage = 1;
@@ -45,20 +52,42 @@ let drawingHistory = [];
 let isDrawing = false;
 let startX, startY;
 let annotations = {};
-let textFields = {}; // Almacena campos de texto editables: {pageNum: [{x, y, width, height, value}, ...]}
+let textFields = {}; // Almacena campos de texto editables: {pageNum: [{x, y, width, height, value, bold, italic, underline, color}, ...]}
 let checkboxes = {}; // Almacena checkboxes: {pageNum: [{x, y, size, checked}, ...]}
+let drawnTexts = {}; // Almacena textos dibujados: {pageNum: [{x, y, text, bold, italic, underline, color, fontSize}, ...]}
+let fills = {}; // Almacena rellenos: {pageNum: [{x, y, width, height, color}, ...]}
 let currentTool = 'select';
 let canvasStates = {};
 let isAddingTextField = false;
 let isAddingCheckbox = false;
 let canvasScale = 1.5; // Escala del canvas para mostrar el PDF
 let fontSize = 12; // Tamaño de fuente para campos de texto
+let selectedTextIndex = null; // Índice del texto seleccionado para editar/mover
+let isDraggingText = false;
+let isMovingText = false; // Control para el modo mover texto
+let ignoreNextClick = false; // Para ignorar el click que abrió el menú
+let moveTextHandler = null; // Para guardar la referencia del handler
+
+// Variables para los estilos de texto actual
+let textBold = false;
+let textItalic = false;
+let textUnderline = false;
+let textColor = '#1e293b';
 
 loadPdfBtn.addEventListener('click', loadPdf);
 toolSelect.addEventListener('change', (e) => {
   currentTool = e.target.value;
   addTextFieldBtn.style.display = currentTool === 'textfield' ? 'inline-block' : 'none';
   addCheckboxBtn.style.display = currentTool === 'checkbox' ? 'inline-block' : 'none';
+  
+  // Mostrar barra de formato solo para texto (imagen)
+  if (currentTool === 'text') {
+    textFormatToolbar.classList.add('active');
+    statusMessage.textContent = 'Selecciona formato y haz clic para agregar texto';
+  } else {
+    textFormatToolbar.classList.remove('active');
+  }
+  
   annotationCanvas.style.cursor = (currentTool === 'textfield' || currentTool === 'checkbox') ? 'crosshair' : 'default';
 });
 
@@ -72,6 +101,26 @@ addCheckboxBtn.addEventListener('click', () => {
   isAddingCheckbox = true;
   annotationCanvas.style.cursor = 'crosshair';
   statusMessage.textContent = 'Haz clic y arrastra para crear un checkbox';
+});
+
+// Event listeners para botones de formato de texto
+boldBtn.addEventListener('click', () => {
+  textBold = !textBold;
+  boldBtn.classList.toggle('active');
+});
+
+italicBtn.addEventListener('click', () => {
+  textItalic = !textItalic;
+  italicBtn.classList.toggle('active');
+});
+
+underlineBtn.addEventListener('click', () => {
+  textUnderline = !textUnderline;
+  underlineBtn.classList.toggle('active');
+});
+
+textColorPicker.addEventListener('change', (e) => {
+  textColor = e.target.value;
 });
 
 clearCanvasBtn.addEventListener('click', clearAnnotations);
@@ -124,6 +173,8 @@ async function loadPdf() {
       annotations = {};
       textFields = {};
       checkboxes = {};
+      drawnTexts = {};
+      fills = {};
       canvasStates = {};
 
       uploadSection.style.display = 'none';
@@ -171,8 +222,14 @@ async function renderPage(pageNum) {
   // Dibujar campos de texto editables
   drawTextFields(pageNum);
   
+  // Dibujar rellenos primero (debajo)
+  drawFills(pageNum);
+  
   // Dibujar checkboxes
   drawCheckboxes(pageNum);
+  
+  // Dibujar textos dibujados (encima)
+  drawTexts(pageNum);
   
   updateAnnotationsPanel();
 }
@@ -188,9 +245,15 @@ function drawTextFields(pageNum) {
     annotCtx.strokeRect(field.x, field.y, field.width, field.height);
     annotCtx.setLineDash([]);
 
+    // Construir el estilo de fuente
+    let fontStyle = '';
+    if (field.italic) fontStyle += 'italic ';
+    if (field.bold) fontStyle += 'bold ';
+    fontStyle += `${fontSize}px Arial`;
+
     // Dibujar texto dentro del campo
-    annotCtx.fillStyle = '#1e293b';
-    annotCtx.font = `${fontSize}px Arial`;
+    annotCtx.fillStyle = field.color || '#1e293b';
+    annotCtx.font = fontStyle;
     annotCtx.textBaseline = 'top';
     const textX = field.x + 5;
     const textY = field.y + 5;
@@ -206,6 +269,18 @@ function drawTextFields(pageNum) {
       displayText += '...';
     }
     annotCtx.fillText(displayText, textX, textY);
+
+    // Dibujar subrayado si está activo
+    if (field.underline) {
+      const textWidth = annotCtx.measureText(displayText).width;
+      const underlineY = textY + fontSize - 2;
+      annotCtx.strokeStyle = field.color || '#1e293b';
+      annotCtx.lineWidth = 1;
+      annotCtx.beginPath();
+      annotCtx.moveTo(textX, underlineY);
+      annotCtx.lineTo(textX + textWidth, underlineY);
+      annotCtx.stroke();
+    }
   });
 }
 
@@ -237,6 +312,23 @@ function drawCheckboxes(pageNum) {
 }
 
 function startDrawing(e) {
+  // Si estamos en modo mover texto, manejar el click para mover
+  if (isMovingText) {
+    const rect = annotationCanvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    if (selectedTextIndex !== null && drawnTexts[currentPage] && drawnTexts[currentPage][selectedTextIndex]) {
+      drawnTexts[currentPage][selectedTextIndex].x = x;
+      drawnTexts[currentPage][selectedTextIndex].y = y;
+      isMovingText = false;
+      selectedTextIndex = null;
+      renderPage(currentPage);
+      statusMessage.textContent = 'Texto movido';
+    }
+    return;
+  }
+  
   if (currentTool === 'select') return;
 
   const rect = annotationCanvas.getBoundingClientRect();
@@ -256,28 +348,57 @@ function startDrawing(e) {
     }
   }
 
+  // Detectar clic en texto existente para editar o mover
+  if (currentTool === 'text' && drawnTexts[currentPage]) {
+    const clickedTextIndex = findTextAtPosition(startX, startY);
+    if (clickedTextIndex !== -1) {
+      // Mostrar opciones de edición
+      showTextEditOptions(clickedTextIndex);
+      return;
+    }
+  }
+
   if (currentTool === 'textfield' && isAddingTextField) {
     isDrawing = true;
   } else if (currentTool === 'checkbox' && isAddingCheckbox) {
     isDrawing = true;
   } else if (currentTool === 'text') {
-    const text = prompt('Ingresa el texto:');
-    if (text) {
-      annotCtx.font = '14px Arial';
-      annotCtx.fillStyle = colorPicker.value;
-      annotCtx.textBaseline = 'middle';
-      annotCtx.textAlign = 'center';
-      annotCtx.fillText(text, startX, startY);
-      saveCanvasState();
-      addAnnotation('Texto', text);
-    }
+    addTextAtPosition(startX, startY);
   } else if (currentTool !== 'textfield' && currentTool !== 'checkbox') {
     isDrawing = true;
   }
 }
 
 function draw(e) {
-  if (!isDrawing) return;
+  // Si estamos en modo mover, mostrar preview
+  if (isMovingText) {
+    const rect = annotationCanvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    renderPage(currentPage);
+    
+    if (selectedTextIndex !== null && drawnTexts[currentPage] && drawnTexts[currentPage][selectedTextIndex]) {
+      const txt = drawnTexts[currentPage][selectedTextIndex];
+      
+      // Dibujar el texto en la nueva posición con transparencia
+      let fontStyle = '';
+      if (txt.italic) fontStyle += 'italic ';
+      if (txt.bold) fontStyle += 'bold ';
+      fontStyle += `${txt.fontSize}px Arial`;
+      
+      annotCtx.globalAlpha = 0.5;
+      annotCtx.font = fontStyle;
+      annotCtx.fillStyle = txt.color || '#1e293b';
+      annotCtx.textBaseline = 'middle';
+      annotCtx.textAlign = 'center';
+      annotCtx.fillText(txt.text, x, y);
+      annotCtx.globalAlpha = 1;
+    }
+    return;
+  }
+  
+  if (!isDrawing || isMovingText) return;
 
   const rect = annotationCanvas.getBoundingClientRect();
   const x = e.clientX - rect.left;
@@ -310,6 +431,15 @@ function draw(e) {
     annotCtx.setLineDash([5, 5]);
     annotCtx.strokeRect(startX, startY, size, size);
     annotCtx.setLineDash([]);
+    return;
+  }
+
+  if (currentTool === 'fill') {
+    // No mostrar previsualización, solo cursor simple
+    // Mostrar dimensiones en el status
+    const width = Math.abs(x - startX);
+    const height = Math.abs(y - startY);
+    statusMessage.textContent = `Rellenar: ${Math.round(width)}x${Math.round(height)}px`;
     return;
   }
 
@@ -364,7 +494,17 @@ function stopDrawing(e) {
       if (!textFields[currentPage]) textFields[currentPage] = [];
       
       const fieldValue = prompt('Valor inicial del cuadro (opcional):') || '';
-      textFields[currentPage].push({ x, y, width, height, value: fieldValue });
+      textFields[currentPage].push({ 
+        x, 
+        y, 
+        width, 
+        height, 
+        value: fieldValue,
+        bold: textBold,
+        italic: textItalic,
+        underline: textUnderline,
+        color: textColor
+      });
       
       renderPage(currentPage);
       addAnnotation('Campo de Texto', fieldValue || '(vacío)');
@@ -387,6 +527,28 @@ function stopDrawing(e) {
       addAnnotation('Checkbox', '(sin marcar)');
       isAddingCheckbox = false;
       statusMessage.textContent = 'Checkbox añadido';
+    }
+  } else if (currentTool === 'fill') {
+    const rect = annotationCanvas.getBoundingClientRect();
+    const endX = e.clientX - rect.left;
+    const endY = e.clientY - rect.top;
+
+    const x = Math.min(startX, endX);
+    const y = Math.min(startY, endY);
+    const width = Math.abs(endX - startX);
+    const height = Math.abs(endY - startY);
+
+    if (width > 5 && height > 5) {
+      // Guardar el relleno en la estructura fills
+      if (!fills[currentPage]) fills[currentPage] = [];
+      fills[currentPage].push({
+        x, y, width, height,
+        color: colorPicker.value
+      });
+      
+      renderPage(currentPage);
+      addAnnotation('Relleno', colorPicker.value);
+      statusMessage.textContent = 'Área rellenada';
     }
   } else if (currentTool === 'pen' || currentTool === 'highlight' ||
     currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
@@ -424,6 +586,8 @@ function clearAnnotations() {
     delete annotations[currentPage];
     delete textFields[currentPage];
     delete checkboxes[currentPage];
+    delete drawnTexts[currentPage];
+    delete fills[currentPage];
     drawingHistory = drawingHistory.filter(p => p !== currentPage);
     annotCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
     updateAnnotationsPanel();
@@ -612,6 +776,102 @@ async function downloadPdf() {
           console.warn('Error al agregar anotaciones:', imgErr);
         }
       }
+
+      // Agregar rellenos primero (debajo del texto)
+      if (fills[i] && fills[i].length > 0) {
+        try {
+          console.log(`Agregando ${fills[i].length} rellenos a la página ${i}`);
+          
+          fills[i].forEach((fill) => {
+            // Convertir coordenadas del canvas a coordenadas del PDF
+            const scaleX = width / annotationCanvas.width;
+            const scaleY = height / annotationCanvas.height;
+            
+            const x = fill.x * scaleX;
+            const y_from_top = fill.y * scaleY;
+            const fillWidth = fill.width * scaleX;
+            const fillHeight = fill.height * scaleY;
+            
+            // Invertir Y: en PDF y=0 está en la PARTE INFERIOR, en canvas y=0 está ARRIBA
+            const y = height - y_from_top - fillHeight;
+            
+            // Convertir color hex a RGB (valores 0-1)
+            const rgb = hexToRgb(fill.color);
+            const r = rgb.r / 255;
+            const g = rgb.g / 255;
+            const b = rgb.b / 255;
+            
+            // Dibujar rectángulo relleno opaco (sin borde)
+            page.drawRectangle({
+              x: x,
+              y: y,
+              width: fillWidth,
+              height: fillHeight,
+              color: window.PDFLib.rgb(r, g, b),
+              borderColor: window.PDFLib.rgb(r, g, b),
+              borderWidth: 0
+            });
+            
+            console.log(`  ✓ Relleno agregado: (${x.toFixed(2)}, ${y.toFixed(2)}, ${fillWidth.toFixed(2)}, ${fillHeight.toFixed(2)})`);
+          });
+        } catch (fillErr) {
+          console.warn('Error al agregar rellenos:', fillErr);
+        }
+      }
+
+      // Agregar textos dibujados después (encima del relleno)
+      if (drawnTexts[i] && drawnTexts[i].length > 0) {
+        try {
+          console.log(`Agregando ${drawnTexts[i].length} textos dibujados a la página ${i}`);
+          
+          // Crear un canvas temporal para renderizar los textos
+          const textCanvasTemp = document.createElement('canvas');
+          textCanvasTemp.width = annotationCanvas.width;
+          textCanvasTemp.height = annotationCanvas.height;
+          const textCtxTemp = textCanvasTemp.getContext('2d');
+          
+          // Dibujar textos en el canvas temporal
+          drawnTexts[i].forEach((txt) => {
+            let fontStyle = '';
+            if (txt.italic) fontStyle += 'italic ';
+            if (txt.bold) fontStyle += 'bold ';
+            fontStyle += `${txt.fontSize}px Arial`;
+            
+            textCtxTemp.font = fontStyle;
+            textCtxTemp.fillStyle = txt.color || '#1e293b';
+            textCtxTemp.textBaseline = 'middle';
+            textCtxTemp.textAlign = 'center';
+            textCtxTemp.fillText(txt.text, txt.x, txt.y);
+            
+            // Dibujar subrayado si está activo
+            if (txt.underline) {
+              const textWidth = textCtxTemp.measureText(txt.text).width;
+              const underlineY = txt.y + 2;
+              textCtxTemp.strokeStyle = txt.color || '#1e293b';
+              textCtxTemp.lineWidth = 1;
+              textCtxTemp.beginPath();
+              textCtxTemp.moveTo(txt.x - textWidth / 2, underlineY);
+              textCtxTemp.lineTo(txt.x + textWidth / 2, underlineY);
+              textCtxTemp.stroke();
+            }
+          });
+          
+          const imgData = textCanvasTemp.toDataURL('image/png');
+          const blob = await (await fetch(imgData)).blob();
+          const imgBytes = await blob.arrayBuffer();
+          
+          const image = await pdfDocLib.embedPng(imgBytes);
+          page.drawImage(image, {
+            x: 0,
+            y: 0,
+            width: width,
+            height: height
+          });
+          console.log(`  ✓ Textos dibujados agregados exitosamente`);
+        } catch (textErr) {
+          console.warn('Error al agregar textos dibujados:', textErr);
+        }
+      }
     }
 
     // Guardar el PDF
@@ -629,4 +889,197 @@ async function downloadPdf() {
     statusMessage.textContent = `Error al descargar: ${err.message}`;
     console.error('Error completo:', err);
   }
+}
+
+// Funciones para manejo de textos dibujados
+
+function findTextAtPosition(x, y) {
+  if (!drawnTexts[currentPage]) return -1;
+  
+  for (let i = 0; i < drawnTexts[currentPage].length; i++) {
+    const txt = drawnTexts[currentPage][i];
+    const textWidth = estimateTextWidth(txt.text, txt.fontSize, txt.bold);
+    const textHeight = txt.fontSize;
+    
+    // Detectar área de clic alrededor del texto
+    if (x >= txt.x - textWidth / 2 - 10 && x <= txt.x + textWidth / 2 + 10 &&
+        y >= txt.y - textHeight / 2 - 10 && y <= txt.y + textHeight / 2 + 10) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+function estimateTextWidth(text, fontSize, bold) {
+  // Estimación aproximada del ancho del texto
+  const charWidth = fontSize * 0.6;
+  const baseWidth = text.length * charWidth;
+  return bold ? baseWidth * 1.1 : baseWidth;
+}
+
+function addTextAtPosition(x, y) {
+  const text = prompt('Ingresa el texto:');
+  if (!text) return;
+  
+  if (!drawnTexts[currentPage]) {
+    drawnTexts[currentPage] = [];
+  }
+  
+  drawnTexts[currentPage].push({
+    x,
+    y,
+    text,
+    bold: textBold,
+    italic: textItalic,
+    underline: textUnderline,
+    color: textColor,
+    fontSize: fontSize
+  });
+  
+  renderPage(currentPage);
+  addAnnotation('Texto', text);
+  statusMessage.textContent = 'Texto añadido. Haz doble clic para editar.';
+}
+
+function editText(index) {
+  const txt = drawnTexts[currentPage][index];
+  const newText = prompt('Edita el texto:', txt.text);
+  
+  if (newText !== null && newText !== '') {
+    txt.text = newText;
+    renderPage(currentPage);
+    statusMessage.textContent = 'Texto actualizado';
+  } else if (newText === '') {
+    // Borrar texto
+    drawnTexts[currentPage].splice(index, 1);
+    renderPage(currentPage);
+    statusMessage.textContent = 'Texto eliminado';
+  }
+}
+
+function showTextEditOptions(index) {
+  const txt = drawnTexts[currentPage][index];
+  
+  // Crear un diálogo personalizado con opciones
+  const options = prompt(
+    `Opciones:\n` +
+    `1 - Editar texto\n` +
+    `2 - Cambiar tamaño\n` +
+    `3 - Mover\n` +
+    `4 - Negrita: ${txt.bold ? 'Sí' : 'No'}\n` +
+    `5 - Cursiva: ${txt.italic ? 'Sí' : 'No'}\n` +
+    `6 - Subrayado: ${txt.underline ? 'Sí' : 'No'}\n` +
+    `7 - Eliminar\n` +
+    `Selecciona una opción (1-7):`,
+    '1'
+  );
+  
+  if (!options) return;
+  
+  switch(options.trim()) {
+    case '1': // Editar texto
+      const newText = prompt('Edita el texto:', txt.text);
+      if (newText !== null && newText !== '') {
+        txt.text = newText;
+        renderPage(currentPage);
+        statusMessage.textContent = 'Texto actualizado';
+      } else if (newText === '') {
+        drawnTexts[currentPage].splice(index, 1);
+        renderPage(currentPage);
+        statusMessage.textContent = 'Texto eliminado';
+      }
+      break;
+      
+    case '2': // Cambiar tamaño
+      const newSize = prompt('Nuevo tamaño de fuente (px):', txt.fontSize);
+      if (newSize && !isNaN(newSize)) {
+        txt.fontSize = parseInt(newSize);
+        renderPage(currentPage);
+        statusMessage.textContent = 'Tamaño actualizado';
+      }
+      break;
+      
+    case '3': // Mover
+      statusMessage.textContent = 'Haz clic en la nueva posición';
+      selectedTextIndex = index;
+      startMoveText();
+      break;
+      
+    case '4': // Negrita
+      txt.bold = !txt.bold;
+      renderPage(currentPage);
+      statusMessage.textContent = `Negrita: ${txt.bold ? 'Activada' : 'Desactivada'}`;
+      break;
+      
+    case '5': // Cursiva
+      txt.italic = !txt.italic;
+      renderPage(currentPage);
+      statusMessage.textContent = `Cursiva: ${txt.italic ? 'Activada' : 'Desactivada'}`;
+      break;
+      
+    case '6': // Subrayado
+      txt.underline = !txt.underline;
+      renderPage(currentPage);
+      statusMessage.textContent = `Subrayado: ${txt.underline ? 'Activado' : 'Desactivado'}`;
+      break;
+      
+    case '7': // Eliminar
+      drawnTexts[currentPage].splice(index, 1);
+      renderPage(currentPage);
+      statusMessage.textContent = 'Texto eliminado';
+      break;
+  }
+}
+
+function startMoveText() {
+  isMovingText = true;
+  statusMessage.textContent = 'Mueve el cursor y haz clic en la nueva posición';
+}
+
+function drawTexts(pageNum) {
+  if (!drawnTexts[pageNum]) return;
+  
+  drawnTexts[pageNum].forEach((txt) => {
+    // Construir el estilo de fuente
+    let fontStyle = '';
+    if (txt.italic) fontStyle += 'italic ';
+    if (txt.bold) fontStyle += 'bold ';
+    fontStyle += `${txt.fontSize}px Arial`;
+    
+    annotCtx.font = fontStyle;
+    annotCtx.fillStyle = txt.color || '#1e293b';
+    annotCtx.textBaseline = 'middle';
+    annotCtx.textAlign = 'center';
+    annotCtx.fillText(txt.text, txt.x, txt.y);
+    
+    // Dibujar subrayado si está activo
+    if (txt.underline) {
+      const textWidth = annotCtx.measureText(txt.text).width;
+      const underlineY = txt.y + 2;
+      annotCtx.strokeStyle = txt.color || '#1e293b';
+      annotCtx.lineWidth = 1;
+      annotCtx.beginPath();
+      annotCtx.moveTo(txt.x - textWidth / 2, underlineY);
+      annotCtx.lineTo(txt.x + textWidth / 2, underlineY);
+      annotCtx.stroke();
+    }
+  });
+}
+
+function drawFills(pageNum) {
+  if (!fills[pageNum]) return;
+  
+  fills[pageNum].forEach((fill) => {
+    annotCtx.fillStyle = fill.color;
+    annotCtx.fillRect(fill.x, fill.y, fill.width, fill.height);
+  });
+}
+
+function hexToRgb(hex) {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : { r: 0, g: 0, b: 0 };
 }

@@ -81,6 +81,7 @@
       flex: 1;
       display: flex;
       flex-direction: column;
+      position: relative;
     }
 
     .toolbar {
@@ -247,6 +248,59 @@
     #extractedText button:hover {
       background: #1d4ed8;
     }
+
+    .text-format-toolbar {
+      background: var(--card);
+      border: 1px solid var(--border);
+      padding: 0.75rem 1rem;
+      display: none;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+      border-radius: 0.375rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      margin: 0.5rem 1rem;
+      z-index: 20;
+    }
+
+    .text-format-toolbar.active {
+      display: flex;
+    }
+
+    .text-format-toolbar button {
+      padding: 0.5rem 0.75rem;
+      background: var(--accent-2);
+      color: white;
+      border: 1px solid var(--accent-2);
+      border-radius: 0.375rem;
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: 500;
+      min-width: 40px;
+    }
+
+    .text-format-toolbar button:hover {
+      background: #1d4ed8;
+    }
+
+    .text-format-toolbar button.active {
+      background: #164e63;
+      border-color: #164e63;
+    }
+
+    .text-format-toolbar input[type="color"] {
+      width: 40px;
+      height: 32px;
+      border: 1px solid var(--border);
+      border-radius: 0.375rem;
+      cursor: pointer;
+    }
+
+    .text-format-toolbar label {
+      font-size: 0.75rem;
+      color: var(--text);
+      margin-left: 0.5rem;
+    }
   </style>
 </head>
 <body>
@@ -277,6 +331,7 @@
             <option value="highlight">Highlighter</option>
             <option value="text">Texto (imagen)</option>
             <option value="textfield">Cuadro de Texto Editable</option>
+            <option value="fill">Rellenar</option>
             <option value="checkbox">Checkbox</option>
             <option value="line">Línea</option>
             <option value="rectangle">Rectángulo</option>
@@ -314,6 +369,14 @@
           <button id="rotateRightBtn">Girar ↺</button>
           <button id="extractTextBtn">Extraer texto</button>
         </div>
+      </div>
+
+      <div class="text-format-toolbar" id="textFormatToolbar">
+        <button id="boldBtn" title="Negrita (Ctrl+B)"><strong>N</strong></button>
+        <button id="italicBtn" title="Cursiva (Ctrl+I)"><em>C</em></button>
+        <button id="underlineBtn" title="Subrayado (Ctrl+U)"><u>S</u></button>
+        <label style="margin-left: 1rem;">Color texto:</label>
+        <input type="color" id="textColorPicker" value="#1e293b" />
       </div>
 
       <div class="viewer-container">
