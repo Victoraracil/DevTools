@@ -73,6 +73,9 @@ let dragStartY = 0; // Posición inicial del arrastre
 let draggedTextIndex = null; // Índice del texto que se está arrastrando
 let savedCanvasState = null; // Estado del canvas antes de empezar a arrastrar
 let savedPdfCanvas = null; // Imagen del PDF antes de arrastrar
+let isDraggingElement = false; // Control general para arrastrar cualquier elemento
+let draggedElementType = null; // Tipo de elemento: 'text', 'textfield', 'checkbox', 'fill'
+let draggedElementIndex = null; // Índice del elemento siendo arrastrado
 
 // Variables para los estilos de texto actual
 let textBold = false;
@@ -153,6 +156,46 @@ annotationCanvas.addEventListener('mousedown', startDrawing);
 annotationCanvas.addEventListener('mousemove', draw);
 annotationCanvas.addEventListener('mouseup', stopDrawing);
 annotationCanvas.addEventListener('mouseout', stopDrawing);
+
+// Funciones auxiliares para detectar elementos en el canvas
+function findTextFieldAtPosition(x, y) {
+  if (!textFields[currentPage]) return -1;
+  
+  for (let i = 0; i < textFields[currentPage].length; i++) {
+    const field = textFields[currentPage][i];
+    if (x >= field.x && x <= field.x + field.width &&
+        y >= field.y && y <= field.y + field.height) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+function findCheckboxAtPosition(x, y) {
+  if (!checkboxes[currentPage]) return -1;
+  
+  for (let i = 0; i < checkboxes[currentPage].length; i++) {
+    const cb = checkboxes[currentPage][i];
+    if (x >= cb.x && x <= cb.x + cb.size &&
+        y >= cb.y && y <= cb.y + cb.size) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+function findFillAtPosition(x, y) {
+  if (!fills[currentPage]) return -1;
+  
+  for (let i = 0; i < fills[currentPage].length; i++) {
+    const fill = fills[currentPage][i];
+    if (x >= fill.x && x <= fill.x + fill.width &&
+        y >= fill.y && y <= fill.y + fill.height) {
+      return i;
+    }
+  }
+  return -1;
+}
 
 async function loadPdf() {
   uploadError.textContent = '';
@@ -341,17 +384,63 @@ function startDrawing(e) {
   startX = e.clientX - rect.left;
   startY = e.clientY - rect.top;
 
-  // Detectar clic en checkbox existente
-  if (currentTool === 'checkbox' && !isAddingCheckbox && checkboxes[currentPage]) {
-    for (let i = 0; i < checkboxes[currentPage].length; i++) {
-      const cb = checkboxes[currentPage][i];
-      if (startX >= cb.x && startX <= cb.x + cb.size &&
-          startY >= cb.y && startY <= cb.y + cb.size) {
-        cb.checked = !cb.checked;
-        renderPage(currentPage);
-        return;
+  // Detectar clic en checkbox existente - permite arrastrar o marcar
+  if (currentTool === 'checkbox' && checkboxes[currentPage]) {
+    const checkboxIndex = findCheckboxAtPosition(startX, startY);
+    if (checkboxIndex !== -1) {
+      if (!isAddingCheckbox) {
+        // Si no estamos creando un checkbox, permitir arrastrar o hacer clic para marcar
+        // Hacer clic rápido para marcar, arrastrar para mover
+        isTextDragging = true;
+        draggedElementType = 'checkbox';
+        draggedElementIndex = checkboxIndex;
+        dragStartX = startX;
+        dragStartY = startY;
+        annotationCanvas.style.cursor = 'grabbing';
+        
+        savedCanvasState = annotCtx.getImageData(0, 0, annotationCanvas.width, annotationCanvas.height);
+        savedPdfCanvas = pdfCtx.getImageData(0, 0, pdfCanvas.width, pdfCanvas.height);
+        
+        statusMessage.textContent = 'Arrastra para mover o suelta rápido para marcar';
       }
+      return;
     }
+  }
+
+  // Detectar clic en campos de texto editables - permitir arrastrar
+  const textFieldIndex = findTextFieldAtPosition(startX, startY);
+  if (textFieldIndex !== -1 && currentTool === 'textfield') {
+    if (!isAddingTextField) {
+      isTextDragging = true;
+      draggedElementType = 'textfield';
+      draggedElementIndex = textFieldIndex;
+      dragStartX = startX;
+      dragStartY = startY;
+      annotationCanvas.style.cursor = 'grabbing';
+      
+      savedCanvasState = annotCtx.getImageData(0, 0, annotationCanvas.width, annotationCanvas.height);
+      savedPdfCanvas = pdfCtx.getImageData(0, 0, pdfCanvas.width, pdfCanvas.height);
+      
+      statusMessage.textContent = 'Arrastra para mover o suelta rápido para editar';
+      return;
+    }
+  }
+
+  // Detectar clic en rellenos - permitir arrastrar
+  const fillIndex = findFillAtPosition(startX, startY);
+  if (fillIndex !== -1 && currentTool === 'fill') {
+    isTextDragging = true;
+    draggedElementType = 'fill';
+    draggedElementIndex = fillIndex;
+    dragStartX = startX;
+    dragStartY = startY;
+    annotationCanvas.style.cursor = 'grabbing';
+    
+    savedCanvasState = annotCtx.getImageData(0, 0, annotationCanvas.width, annotationCanvas.height);
+    savedPdfCanvas = pdfCtx.getImageData(0, 0, pdfCanvas.width, pdfCanvas.height);
+    
+    statusMessage.textContent = 'Arrastra para mover el relleno';
+    return;
   }
 
   // Detectar clic en texto existente para arrastrar (drag and drop)
@@ -360,7 +449,8 @@ function startDrawing(e) {
     if (clickedTextIndex !== -1) {
       // Activar modo de arrastre
       isTextDragging = true;
-      draggedTextIndex = clickedTextIndex;
+      draggedElementType = 'text';
+      draggedElementIndex = clickedTextIndex;
       dragStartX = startX;
       dragStartY = startY;
       annotationCanvas.style.cursor = 'grabbing';
@@ -386,8 +476,8 @@ function startDrawing(e) {
 }
 
 function draw(e) {
-  // Si estamos arrastrando un texto, mostrar preview sin redibujar todo
-  if (isTextDragging && draggedTextIndex !== null && drawnTexts[currentPage] && drawnTexts[currentPage][draggedTextIndex]) {
+  // Si estamos arrastrando cualquier elemento, mostrar preview sin redibujar todo
+  if (isTextDragging && draggedElementType && draggedElementIndex !== null) {
     const rect = annotationCanvas.getBoundingClientRect();
     const currentX = e.clientX - rect.left;
     const currentY = e.clientY - rect.top;
@@ -396,59 +486,140 @@ function draw(e) {
     const offsetX = currentX - dragStartX;
     const offsetY = currentY - dragStartY;
     
-    const txt = drawnTexts[currentPage][draggedTextIndex];
-    const newX = txt.x + offsetX;
-    const newY = txt.y + offsetY;
-    
     // Restaurar el estado guardado (NO redibuja la página completa)
     if (savedCanvasState) {
       annotCtx.putImageData(savedCanvasState, 0, 0);
     }
     
-    // Construir el estilo de fuente
-    let fontStyle = '';
-    if (txt.italic) fontStyle += 'italic ';
-    if (txt.bold) fontStyle += 'bold ';
-    fontStyle += `${txt.fontSize}px Arial`;
-    
-    const textWidth = estimateTextWidth(txt.text, txt.fontSize, txt.bold);
-    const textHeight = txt.fontSize;
-    
-    // Dibujar sombra (shadow effect) en la posición destino
-    annotCtx.fillStyle = 'rgba(0, 0, 0, 0.1)';
-    annotCtx.fillRect(newX - textWidth / 2 - 5, newY - textHeight / 2 - 5, textWidth + 10, textHeight + 10);
-    
-    // Dibujar borde de selección punteado alrededor del destino
-    annotCtx.strokeStyle = '#0f766e';
-    annotCtx.lineWidth = 2;
-    annotCtx.setLineDash([5, 5]);
-    annotCtx.strokeRect(newX - textWidth / 2 - 5, newY - textHeight / 2 - 5, textWidth + 10, textHeight + 10);
-    annotCtx.setLineDash([]);
-    
-    // Dibujar el texto en la nueva posición (versión ghost/sombra - translúcido)
-    annotCtx.globalAlpha = 0.7;
-    annotCtx.font = fontStyle;
-    annotCtx.fillStyle = txt.color || '#1e293b';
-    annotCtx.textBaseline = 'middle';
-    annotCtx.textAlign = 'center';
-    annotCtx.fillText(txt.text, newX, newY);
-    
-    // Dibujar subrayado si está activo
-    if (txt.underline) {
-      const textWidth = annotCtx.measureText(txt.text).width;
-      const underlineY = newY + 2;
-      annotCtx.strokeStyle = txt.color || '#1e293b';
-      annotCtx.lineWidth = 1;
-      annotCtx.beginPath();
-      annotCtx.moveTo(newX - textWidth / 2, underlineY);
-      annotCtx.lineTo(newX + textWidth / 2, underlineY);
-      annotCtx.stroke();
+    // Renderizar preview según el tipo de elemento
+    if (draggedElementType === 'text') {
+      const txt = drawnTexts[currentPage][draggedElementIndex];
+      const newX = txt.x + offsetX;
+      const newY = txt.y + offsetY;
+      
+      let fontStyle = '';
+      if (txt.italic) fontStyle += 'italic ';
+      if (txt.bold) fontStyle += 'bold ';
+      fontStyle += `${txt.fontSize}px Arial`;
+      
+      const textWidth = estimateTextWidth(txt.text, txt.fontSize, txt.bold);
+      const textHeight = txt.fontSize;
+      
+      // Dibujar sombra en la posición destino
+      annotCtx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+      annotCtx.fillRect(newX - textWidth / 2 - 5, newY - textHeight / 2 - 5, textWidth + 10, textHeight + 10);
+      
+      // Borde punteado
+      annotCtx.strokeStyle = '#0f766e';
+      annotCtx.lineWidth = 2;
+      annotCtx.setLineDash([5, 5]);
+      annotCtx.strokeRect(newX - textWidth / 2 - 5, newY - textHeight / 2 - 5, textWidth + 10, textHeight + 10);
+      annotCtx.setLineDash([]);
+      
+      // Texto translúcido
+      annotCtx.globalAlpha = 0.7;
+      annotCtx.font = fontStyle;
+      annotCtx.fillStyle = txt.color || '#1e293b';
+      annotCtx.textBaseline = 'middle';
+      annotCtx.textAlign = 'center';
+      annotCtx.fillText(txt.text, newX, newY);
+      
+      // Subrayado si está activo
+      if (txt.underline) {
+        const textWidth = annotCtx.measureText(txt.text).width;
+        const underlineY = newY + 2;
+        annotCtx.strokeStyle = txt.color || '#1e293b';
+        annotCtx.lineWidth = 1;
+        annotCtx.beginPath();
+        annotCtx.moveTo(newX - textWidth / 2, underlineY);
+        annotCtx.lineTo(newX + textWidth / 2, underlineY);
+        annotCtx.stroke();
+      }
+      
+      annotCtx.globalAlpha = 1;
+      statusMessage.textContent = `📍 Moviendo texto a (${Math.round(newX)}, ${Math.round(newY)}) - Suelta para confirmar`;
+      
+    } else if (draggedElementType === 'textfield') {
+      const field = textFields[currentPage][draggedElementIndex];
+      const newX = field.x + offsetX;
+      const newY = field.y + offsetY;
+      
+      // Dibujar sombra
+      annotCtx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+      annotCtx.fillRect(newX, newY, field.width, field.height);
+      
+      // Borde punteado
+      annotCtx.strokeStyle = '#0f766e';
+      annotCtx.lineWidth = 2;
+      annotCtx.setLineDash([5, 5]);
+      annotCtx.strokeRect(newX, newY, field.width, field.height);
+      annotCtx.setLineDash([]);
+      
+      // Construir el estilo de fuente
+      let fontStyle = '';
+      if (field.italic) fontStyle += 'italic ';
+      if (field.bold) fontStyle += 'bold ';
+      fontStyle += `${fontSize}px Arial`;
+      
+      // Dibujar texto del campo
+      annotCtx.globalAlpha = 0.7;
+      annotCtx.fillStyle = field.color || '#1e293b';
+      annotCtx.font = fontStyle;
+      annotCtx.textBaseline = 'top';
+      const textX = newX + 5;
+      const textY = newY + 5;
+      annotCtx.fillText(field.value.substring(0, 20), textX, textY);
+      annotCtx.globalAlpha = 1;
+      
+      statusMessage.textContent = `📍 Moviendo campo de texto a (${Math.round(newX)}, ${Math.round(newY)})`;
+      
+    } else if (draggedElementType === 'checkbox') {
+      const cb = checkboxes[currentPage][draggedElementIndex];
+      const newX = cb.x + offsetX;
+      const newY = cb.y + offsetY;
+      
+      // Dibujar sombra
+      annotCtx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+      annotCtx.fillRect(newX - 5, newY - 5, cb.size + 10, cb.size + 10);
+      
+      // Borde punteado
+      annotCtx.strokeStyle = '#0f766e';
+      annotCtx.lineWidth = 2;
+      annotCtx.setLineDash([5, 5]);
+      annotCtx.strokeRect(newX - 5, newY - 5, cb.size + 10, cb.size + 10);
+      annotCtx.setLineDash([]);
+      
+      // Dibujar checkbox preview
+      annotCtx.globalAlpha = 0.7;
+      annotCtx.fillStyle = cb.checked ? colorPicker.value : '#ffffff';
+      annotCtx.strokeStyle = colorPicker.value;
+      annotCtx.lineWidth = 2;
+      annotCtx.fillRect(newX, newY, cb.size, cb.size);
+      annotCtx.strokeRect(newX, newY, cb.size, cb.size);
+      annotCtx.globalAlpha = 1;
+      
+      statusMessage.textContent = `📍 Moviendo checkbox a (${Math.round(newX)}, ${Math.round(newY)})`;
+      
+    } else if (draggedElementType === 'fill') {
+      const fill = fills[currentPage][draggedElementIndex];
+      const newX = fill.x + offsetX;
+      const newY = fill.y + offsetY;
+      
+      // Dibujar relleno con transparencia
+      annotCtx.globalAlpha = 0.7;
+      annotCtx.fillStyle = fill.color;
+      annotCtx.fillRect(newX, newY, fill.width, fill.height);
+      annotCtx.globalAlpha = 1;
+      
+      // Borde punteado
+      annotCtx.strokeStyle = '#0f766e';
+      annotCtx.lineWidth = 2;
+      annotCtx.setLineDash([5, 5]);
+      annotCtx.strokeRect(newX, newY, fill.width, fill.height);
+      annotCtx.setLineDash([]);
+      
+      statusMessage.textContent = `📍 Moviendo relleno a (${Math.round(newX)}, ${Math.round(newY)})`;
     }
-    
-    annotCtx.globalAlpha = 1;
-    
-    // Mostrar coordinates en el status para precisión
-    statusMessage.textContent = `📍 Moviendo texto a (${Math.round(newX)}, ${Math.round(newY)}) - Suelta para confirmar`;
     
     return;
   }
@@ -561,8 +732,8 @@ function draw(e) {
 }
 
 function stopDrawing(e) {
-  // Si estamos arrastrando un texto, completar el arrastre
-  if (isTextDragging && draggedTextIndex !== null && drawnTexts[currentPage] && drawnTexts[currentPage][draggedTextIndex]) {
+  // Si estamos arrastrando cualquier elemento, completar el arrastre
+  if (isTextDragging && draggedElementType && draggedElementIndex !== null) {
     const rect = annotationCanvas.getBoundingClientRect();
     const currentX = e.clientX - rect.left;
     const currentY = e.clientY - rect.top;
@@ -571,29 +742,55 @@ function stopDrawing(e) {
     const offsetX = currentX - dragStartX;
     const offsetY = currentY - dragStartY;
     
-    // Verificar si fue un clic corto (menos de 5px de movimiento) para editar en lugar de mover
+    // Verificar si fue un clic corto (menos de 5px de movimiento)
     const moveDistance = Math.sqrt(offsetX * offsetX + offsetY * offsetY);
     
     if (moveDistance < 5) {
-      // Clic corto: mostrar opciones de edición
-      showTextEditOptions(draggedTextIndex);
+      // Clic corto: mostrar opciones según el tipo
+      if (draggedElementType === 'text') {
+        showTextEditOptions(draggedElementIndex);
+      } else if (draggedElementType === 'checkbox') {
+        // Para checkbox, invertir el estado
+        checkboxes[currentPage][draggedElementIndex].checked = !checkboxes[currentPage][draggedElementIndex].checked;
+        statusMessage.textContent = 'Checkbox actualizado';
+      } else if (draggedElementType === 'textfield') {
+        // Para textfield, permitir editar el contenido
+        const field = textFields[currentPage][draggedElementIndex];
+        const newValue = prompt('Edita el valor del campo:', field.value);
+        if (newValue !== null) {
+          field.value = newValue;
+          statusMessage.textContent = 'Campo de texto actualizado';
+        }
+      }
     } else {
       // Movimiento real: actualizar la posición
-      drawnTexts[currentPage][draggedTextIndex].x += offsetX;
-      drawnTexts[currentPage][draggedTextIndex].y += offsetY;
-      statusMessage.textContent = '✓ Texto movido correctamente';
-      renderPage(currentPage); // Redibujar la página una sola vez al completar el arrastre
+      if (draggedElementType === 'text') {
+        drawnTexts[currentPage][draggedElementIndex].x += offsetX;
+        drawnTexts[currentPage][draggedElementIndex].y += offsetY;
+        statusMessage.textContent = '✓ Texto movido correctamente';
+      } else if (draggedElementType === 'textfield') {
+        textFields[currentPage][draggedElementIndex].x += offsetX;
+        textFields[currentPage][draggedElementIndex].y += offsetY;
+        statusMessage.textContent = '✓ Campo de texto movido correctamente';
+      } else if (draggedElementType === 'checkbox') {
+        checkboxes[currentPage][draggedElementIndex].x += offsetX;
+        checkboxes[currentPage][draggedElementIndex].y += offsetY;
+        statusMessage.textContent = '✓ Checkbox movido correctamente';
+      } else if (draggedElementType === 'fill') {
+        fills[currentPage][draggedElementIndex].x += offsetX;
+        fills[currentPage][draggedElementIndex].y += offsetY;
+        statusMessage.textContent = '✓ Relleno movido correctamente';
+      }
     }
     
     isTextDragging = false;
-    draggedTextIndex = null;
+    draggedElementType = null;
+    draggedElementIndex = null;
     savedCanvasState = null; // Limpiar el estado guardado
     savedPdfCanvas = null;
     annotationCanvas.style.cursor = 'default';
     
-    if (moveDistance >= 5) {
-      renderPage(currentPage); // Solo redibujar si fue un movimiento real
-    }
+    renderPage(currentPage); // Redibujar la página
     return;
   }
   
