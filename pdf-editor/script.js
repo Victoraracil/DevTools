@@ -67,6 +67,12 @@ let isDraggingText = false;
 let isMovingText = false; // Control para el modo mover texto
 let ignoreNextClick = false; // Para ignorar el click que abrió el menú
 let moveTextHandler = null; // Para guardar la referencia del handler
+let isTextDragging = false; // Control para arrastrar texto con el ratón
+let dragStartX = 0; // Posición inicial del arrastre
+let dragStartY = 0; // Posición inicial del arrastre
+let draggedTextIndex = null; // Índice del texto que se está arrastrando
+let savedCanvasState = null; // Estado del canvas antes de empezar a arrastrar
+let savedPdfCanvas = null; // Imagen del PDF antes de arrastrar
 
 // Variables para los estilos de texto actual
 let textBold = false;
@@ -83,7 +89,7 @@ toolSelect.addEventListener('change', (e) => {
   // Mostrar barra de formato solo para texto (imagen)
   if (currentTool === 'text') {
     textFormatToolbar.classList.add('active');
-    statusMessage.textContent = 'Selecciona formato y haz clic para agregar texto';
+    statusMessage.textContent = '📝 Selecciona formato, haz clic para agregar texto, arrastra para mover';
   } else {
     textFormatToolbar.classList.remove('active');
   }
@@ -348,12 +354,22 @@ function startDrawing(e) {
     }
   }
 
-  // Detectar clic en texto existente para editar o mover
+  // Detectar clic en texto existente para arrastrar (drag and drop)
   if (currentTool === 'text' && drawnTexts[currentPage]) {
     const clickedTextIndex = findTextAtPosition(startX, startY);
     if (clickedTextIndex !== -1) {
-      // Mostrar opciones de edición
-      showTextEditOptions(clickedTextIndex);
+      // Activar modo de arrastre
+      isTextDragging = true;
+      draggedTextIndex = clickedTextIndex;
+      dragStartX = startX;
+      dragStartY = startY;
+      annotationCanvas.style.cursor = 'grabbing';
+      
+      // Guardar el estado actual del canvas para no redibujarlo durante el arrastre
+      savedCanvasState = annotCtx.getImageData(0, 0, annotationCanvas.width, annotationCanvas.height);
+      savedPdfCanvas = pdfCtx.getImageData(0, 0, pdfCanvas.width, pdfCanvas.height);
+      
+      statusMessage.textContent = 'Arrastra el texto a la nueva posición o suéltalo rápido para editar';
       return;
     }
   }
@@ -370,6 +386,73 @@ function startDrawing(e) {
 }
 
 function draw(e) {
+  // Si estamos arrastrando un texto, mostrar preview sin redibujar todo
+  if (isTextDragging && draggedTextIndex !== null && drawnTexts[currentPage] && drawnTexts[currentPage][draggedTextIndex]) {
+    const rect = annotationCanvas.getBoundingClientRect();
+    const currentX = e.clientX - rect.left;
+    const currentY = e.clientY - rect.top;
+    
+    // Calcular el desplazamiento
+    const offsetX = currentX - dragStartX;
+    const offsetY = currentY - dragStartY;
+    
+    const txt = drawnTexts[currentPage][draggedTextIndex];
+    const newX = txt.x + offsetX;
+    const newY = txt.y + offsetY;
+    
+    // Restaurar el estado guardado (NO redibuja la página completa)
+    if (savedCanvasState) {
+      annotCtx.putImageData(savedCanvasState, 0, 0);
+    }
+    
+    // Construir el estilo de fuente
+    let fontStyle = '';
+    if (txt.italic) fontStyle += 'italic ';
+    if (txt.bold) fontStyle += 'bold ';
+    fontStyle += `${txt.fontSize}px Arial`;
+    
+    const textWidth = estimateTextWidth(txt.text, txt.fontSize, txt.bold);
+    const textHeight = txt.fontSize;
+    
+    // Dibujar sombra (shadow effect) en la posición destino
+    annotCtx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+    annotCtx.fillRect(newX - textWidth / 2 - 5, newY - textHeight / 2 - 5, textWidth + 10, textHeight + 10);
+    
+    // Dibujar borde de selección punteado alrededor del destino
+    annotCtx.strokeStyle = '#0f766e';
+    annotCtx.lineWidth = 2;
+    annotCtx.setLineDash([5, 5]);
+    annotCtx.strokeRect(newX - textWidth / 2 - 5, newY - textHeight / 2 - 5, textWidth + 10, textHeight + 10);
+    annotCtx.setLineDash([]);
+    
+    // Dibujar el texto en la nueva posición (versión ghost/sombra - translúcido)
+    annotCtx.globalAlpha = 0.7;
+    annotCtx.font = fontStyle;
+    annotCtx.fillStyle = txt.color || '#1e293b';
+    annotCtx.textBaseline = 'middle';
+    annotCtx.textAlign = 'center';
+    annotCtx.fillText(txt.text, newX, newY);
+    
+    // Dibujar subrayado si está activo
+    if (txt.underline) {
+      const textWidth = annotCtx.measureText(txt.text).width;
+      const underlineY = newY + 2;
+      annotCtx.strokeStyle = txt.color || '#1e293b';
+      annotCtx.lineWidth = 1;
+      annotCtx.beginPath();
+      annotCtx.moveTo(newX - textWidth / 2, underlineY);
+      annotCtx.lineTo(newX + textWidth / 2, underlineY);
+      annotCtx.stroke();
+    }
+    
+    annotCtx.globalAlpha = 1;
+    
+    // Mostrar coordinates en el status para precisión
+    statusMessage.textContent = `📍 Moviendo texto a (${Math.round(newX)}, ${Math.round(newY)}) - Suelta para confirmar`;
+    
+    return;
+  }
+  
   // Si estamos en modo mover, mostrar preview
   if (isMovingText) {
     const rect = annotationCanvas.getBoundingClientRect();
@@ -478,6 +561,42 @@ function draw(e) {
 }
 
 function stopDrawing(e) {
+  // Si estamos arrastrando un texto, completar el arrastre
+  if (isTextDragging && draggedTextIndex !== null && drawnTexts[currentPage] && drawnTexts[currentPage][draggedTextIndex]) {
+    const rect = annotationCanvas.getBoundingClientRect();
+    const currentX = e.clientX - rect.left;
+    const currentY = e.clientY - rect.top;
+    
+    // Calcular el desplazamiento
+    const offsetX = currentX - dragStartX;
+    const offsetY = currentY - dragStartY;
+    
+    // Verificar si fue un clic corto (menos de 5px de movimiento) para editar en lugar de mover
+    const moveDistance = Math.sqrt(offsetX * offsetX + offsetY * offsetY);
+    
+    if (moveDistance < 5) {
+      // Clic corto: mostrar opciones de edición
+      showTextEditOptions(draggedTextIndex);
+    } else {
+      // Movimiento real: actualizar la posición
+      drawnTexts[currentPage][draggedTextIndex].x += offsetX;
+      drawnTexts[currentPage][draggedTextIndex].y += offsetY;
+      statusMessage.textContent = '✓ Texto movido correctamente';
+      renderPage(currentPage); // Redibujar la página una sola vez al completar el arrastre
+    }
+    
+    isTextDragging = false;
+    draggedTextIndex = null;
+    savedCanvasState = null; // Limpiar el estado guardado
+    savedPdfCanvas = null;
+    annotationCanvas.style.cursor = 'default';
+    
+    if (moveDistance >= 5) {
+      renderPage(currentPage); // Solo redibujar si fue un movimiento real
+    }
+    return;
+  }
+  
   if (!isDrawing) return;
 
   if (currentTool === 'textfield' && isAddingTextField) {
@@ -938,7 +1057,7 @@ function addTextAtPosition(x, y) {
   
   renderPage(currentPage);
   addAnnotation('Texto', text);
-  statusMessage.textContent = 'Texto añadido. Haz doble clic para editar.';
+  statusMessage.textContent = '✓ Texto añadido. Arrastra para mover o haz clic para editar.';
 }
 
 function editText(index) {
@@ -960,17 +1079,17 @@ function editText(index) {
 function showTextEditOptions(index) {
   const txt = drawnTexts[currentPage][index];
   
-  // Crear un diálogo personalizado con opciones
+  // Crear un diálogo personalizado con opciones mejorado
   const options = prompt(
-    `Opciones:\n` +
-    `1 - Editar texto\n` +
-    `2 - Cambiar tamaño\n` +
-    `3 - Mover\n` +
-    `4 - Negrita: ${txt.bold ? 'Sí' : 'No'}\n` +
-    `5 - Cursiva: ${txt.italic ? 'Sí' : 'No'}\n` +
-    `6 - Subrayado: ${txt.underline ? 'Sí' : 'No'}\n` +
-    `7 - Eliminar\n` +
-    `Selecciona una opción (1-7):`,
+    `📝 EDITAR TEXTO\n\n` +
+    `Selecciona una opción (1-7):\n\n` +
+    `1 - ✏️  Editar texto\n` +
+    `2 - 📏 Cambiar tamaño\n` +
+    `3 - ➡️  Mover\n` +
+    `4 - 🔤 Negrita: ${txt.bold ? '✓ Sí' : '○ No'}\n` +
+    `5 - 𝘐 Cursiva: ${txt.italic ? '✓ Sí' : '○ No'}\n` +
+    `6 - U̲ Subrayado: ${txt.underline ? '✓ Sí' : '○ No'}\n` +
+    `7 - 🗑️  Eliminar\n`,
     '1'
   );
   
