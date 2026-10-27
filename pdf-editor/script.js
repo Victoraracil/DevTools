@@ -985,6 +985,10 @@ async function downloadPdf() {
     
     // Cargar el PDF con pdf-lib
     const pdfDocLib = await PDFDocument.load(arrayBuffer);
+    const StandardFonts = window.PDFLib.StandardFonts;
+    const rgb = window.PDFLib.rgb;
+    const form = pdfDocLib.getForm();
+    const defaultFormFont = await pdfDocLib.embedFont(StandardFonts.Helvetica);
     
     console.log('Campos de texto a agregar:', textFields);
     
@@ -995,10 +999,9 @@ async function downloadPdf() {
       
       console.log(`Página ${i}: ancho=${width}, alto=${height}`);
 
-      // Agregar campos de texto si existen
+      // Crear campos de texto editables con borde invisible
       if (textFields[i] && textFields[i].length > 0) {
-        console.log(`Agregando ${textFields[i].length} campos a la página ${i}`);
-        const form = pdfDocLib.getForm();
+        console.log(`Agregando ${textFields[i].length} campos editables en la página ${i}`);
         
         textFields[i].forEach((field, index) => {
           const fieldName = `TextField_P${i}_F${index}`;
@@ -1010,22 +1013,33 @@ async function downloadPdf() {
           
           const x = field.x * scaleX;
           const y_from_top = field.y * scaleY;
-          const fieldWidth = field.width * scaleX;
-          const fieldHeight = field.height * scaleY;
+          const fieldWidth = Math.max(field.width * scaleX, 1);
+          const fieldHeight = Math.max(field.height * scaleY, 1);
+          const scaledFontSize = Math.max(fontSize * scaleY, 6);
           
           // Invertir Y: en PDF y=0 está en la PARTE INFERIOR, en canvas y=0 está ARRIBA
           const y = height - y_from_top - fieldHeight;
+
+          const rgbColor = hexToRgb(field.color || '#1e293b');
+          const textColor = rgb(rgbColor.r / 255, rgbColor.g / 255, rgbColor.b / 255);
           
           console.log(`  Campo ${index}: canvas(${field.x},${field.y},${field.width},${field.height}) -> pdf(${x.toFixed(2)},${y.toFixed(2)},${fieldWidth.toFixed(2)},${fieldHeight.toFixed(2)})`);
           
           try {
-            // Crear campo de texto
             const textField = form.createTextField(fieldName);
-            textField.setText(field.value);
-            textField.setAlignment('Left');
-            textField.addToPage(page, { x, y, width: fieldWidth, height: fieldHeight });
-            textField.setFontSize(fontSize);
-            console.log(`  ✓ Campo ${index} agregado exitosamente`);
+            textField.setText(String(field.value || ''));
+            textField.addToPage(page, {
+              x,
+              y,
+              width: fieldWidth,
+              height: fieldHeight,
+              textColor,
+              borderColor: rgb(1, 1, 1),
+              borderWidth: 0,
+              font: defaultFormFont
+            });
+            textField.setFontSize(scaledFontSize);
+            console.log(`  ✓ Campo ${index} editable agregado con borde invisible`);
           } catch (fieldErr) {
             console.warn(`  ✗ Error al agregar campo ${index}:`, fieldErr);
           }
@@ -1035,8 +1049,6 @@ async function downloadPdf() {
       // Agregar checkboxes si existen
       if (checkboxes[i] && checkboxes[i].length > 0) {
         console.log(`Agregando ${checkboxes[i].length} checkboxes a la página ${i}`);
-        const form = pdfDocLib.getForm();
-        
         checkboxes[i].forEach((checkbox, index) => {
           const checkboxName = `Checkbox_P${i}_C${index}`;
           
@@ -1189,6 +1201,9 @@ async function downloadPdf() {
         }
       }
     }
+
+    // Regenerar apariencias para conservar estilo/borde invisible de los campos
+    form.updateFieldAppearances(defaultFormFont);
 
     // Guardar el PDF
     const modifiedPdfBytes = await pdfDocLib.save();
